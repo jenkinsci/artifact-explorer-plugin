@@ -9,9 +9,8 @@
   --ae-indent: 1.1rem;
 
   margin: 0.5rem 0 0.85rem 0;
-  max-width: 38rem;
   border: 1px solid var(--ae-border);
-  border-radius: 6px;
+  border-radius: var(--form-input-border-radius);
   background: var(--card-background, var(--background, #fff));
   overflow: hidden;
   box-sizing: border-box;
@@ -295,7 +294,7 @@
 
 .ae-fp-card {
   border: 1px solid var(--ae-border);
-  border-radius: 8px;
+  border-radius: var(--form-input-border-radius);
   background: var(--card-background, var(--background, #fff));
   padding: 1.25rem 1.5rem;
   box-sizing: border-box;
@@ -311,7 +310,7 @@
 .ae-fp-icon-wrap {
   width: 3.25rem;
   height: 3.25rem;
-  border-radius: 8px;
+  border-radius: var(--form-input-border-radius);
   background: var(--ae-hover);
   border: 1px solid var(--ae-border);
   display: flex;
@@ -353,7 +352,7 @@
   gap: 0.6rem;
   background: var(--table-header-background, rgba(127, 127, 127, 0.06));
   border: 1px solid var(--ae-border);
-  border-radius: 6px;
+  border-radius: var(--form-input-border-radius);
   padding: 0.45rem 0.8rem;
   margin-bottom: 1rem;
   flex-wrap: wrap;
@@ -423,21 +422,6 @@
   flex-wrap: wrap;
 }
 
-.ae-fp-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.9rem;
-  font-size: 0.825rem;
-  text-decoration: none;
-  border-radius: 6px;
-}
-
-.ae-fp-action-btn svg {
-  width: 0.95rem;
-  height: 0.95rem;
-}
-
 .ae-fp-card-header {
   margin-bottom: 0.85rem;
 }
@@ -457,7 +441,7 @@
 
 .ae-fp-table-wrap {
   border: 1px solid var(--ae-border);
-  border-radius: 6px;
+  border-radius: var(--form-input-border-radius);
   overflow: hidden;
 }
 
@@ -504,9 +488,22 @@
   text-decoration: underline;
 }
 
+.ae-fp-builds-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.ae-fp-range-sep {
+  color: var(--ae-muted);
+  font-weight: 600;
+}
+
 .ae-fp-build-badge {
   display: inline-flex;
   align-items: center;
+  gap: 0.25rem;
   padding: 0.15rem 0.45rem;
   font-size: 0.775rem;
   font-weight: 600;
@@ -523,6 +520,9 @@
 }
 
 .ae-fp-btn-link {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
   font-size: 0.78rem;
   color: var(--link-color, #0b69a3);
   text-decoration: none;
@@ -559,31 +559,8 @@
 }
 
 .ae-sum-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.12rem 0.45rem;
-  border-radius: 9999px;
-  border: 1px solid var(--ae-border);
-  background: var(--ae-hover, rgba(127, 127, 127, 0.08));
-  color: var(--text-color, inherit);
-  font-size: 0.72rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-  user-select: none;
-}
-
-.ae-sum-pill:hover {
-  background: var(--ae-selected, rgba(11, 105, 163, 0.15));
-  border-color: var(--primary, #0b69a3);
-}
-
-.ae-sum-pill--active {
-  background: var(--primary, #0b69a3) !important;
-  border-color: var(--primary, #0b69a3) !important;
-  color: var(--white, #ffffff) !important;
-  font-weight: 600;
+  min-height: unset;
+  padding: 0.2rem 0.55rem;
 }
 
 .ae-sum-pill-count {
@@ -595,25 +572,3 @@
   background: var(--ae-hover, rgba(0, 0, 0, 0.08));
   color: inherit;
 }
-
-.ae-sum-pill--active .ae-sum-pill-count {
-  background: var(--ae-pill-active-bg, rgba(255, 255, 255, 0.25));
-  color: var(--white, #ffffff);
-}
-
-/* Clipboard Fallback Buffer */
-.ae-clipboard-buffer {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  outline: none !important;
-  background: transparent !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
-

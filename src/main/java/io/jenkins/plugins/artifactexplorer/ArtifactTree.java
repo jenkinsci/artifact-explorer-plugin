@@ -21,9 +21,9 @@ import jenkins.util.SystemProperties;
 import jenkins.util.VirtualFile;
 
 /**
- * Read-only view of a build's archived artifacts, built on {@link jenkins.model.ArtifactManager#root()} so it works
- * for any artifact manager (local disk, S3, ...). All paths handled here are relative to the artifact root and use
- * {@code /} as the separator.
+ * Read-only view of a build's archived artifacts (or controller {@code userContent}), built on
+ * {@link jenkins.model.ArtifactManager#root()} / {@link VirtualFile} so it works for any artifact manager (local disk,
+ * S3, ...). All paths handled here are relative to the artifact root and use {@code /} as the separator.
  */
 public final class ArtifactTree {
 
@@ -38,7 +38,7 @@ public final class ArtifactTree {
     /** Result of a (possibly truncated) listing. */
     public record Listing<T>(List<T> items, boolean truncated) {}
 
-    /** Preview metadata and bounded UTF-8 text content for a single artifact file. */
+    /** Preview metadata, bounded UTF-8 text content, and optional CommonMark HTML for a single artifact file. */
     public record FilePreview(
             String name,
             String path,
@@ -46,7 +46,8 @@ public final class ArtifactTree {
             long lastModified,
             boolean binary,
             boolean truncated,
-            @CheckForNull String text) {}
+            @CheckForNull String text,
+            @CheckForNull String renderedHtml) {}
 
     /**
      * Validates and normalizes a user supplied relative path.
@@ -142,8 +143,14 @@ public final class ArtifactTree {
      * @return the listing, or {@code null} if {@code path} is not a directory inside the artifact root
      */
     public static Listing<Entry> children(Run<?, ?> run, String path, int limit) throws IOException {
+        return children(run.getArtifactManager().root(), path, limit);
+    }
+
+    /**
+     * Lists the direct children of a directory under a {@link VirtualFile} root.
+     */
+    public static Listing<Entry> children(@CheckForNull VirtualFile root, String path, int limit) throws IOException {
         String clean = sanitize(path);
-        VirtualFile root = run.getArtifactManager().root();
         if (root == null || !root.exists() || !root.isDirectory()) {
             return clean.isEmpty() ? new Listing<>(new ArrayList<>(), false) : null;
         }
@@ -175,7 +182,13 @@ public final class ArtifactTree {
      * @param limit maximum number of paths to return
      */
     public static Listing<String> allFiles(Run<?, ?> run, int limit) throws IOException {
-        VirtualFile root = run.getArtifactManager().root();
+        return allFiles(run.getArtifactManager().root(), limit);
+    }
+
+    /**
+     * Lists every file (not directory) under a {@link VirtualFile} root as relative paths.
+     */
+    public static Listing<String> allFiles(@CheckForNull VirtualFile root, int limit) throws IOException {
         if (root == null || !root.exists() || !root.isDirectory()) {
             return new Listing<>(new ArrayList<>(), false);
         }
@@ -203,8 +216,16 @@ public final class ArtifactTree {
      */
     @CheckForNull
     public static FilePreview preview(Run<?, ?> run, String path, int maxBytes) throws IOException {
+        return preview(run.getArtifactManager().root(), path, maxBytes);
+    }
+
+    /**
+     * Reads a bounded preview of a single file under a {@link VirtualFile} root.
+     */
+    @CheckForNull
+    public static FilePreview preview(@CheckForNull VirtualFile root, String path, int maxBytes) throws IOException {
         String clean = sanitize(path);
-        VirtualFile file = resolveReadableFile(run, clean);
+        VirtualFile file = resolveReadableFile(root, clean);
         if (file == null) {
             return null;
         }
@@ -228,7 +249,10 @@ public final class ArtifactTree {
             }
         }
         String text = binary ? null : new String(buf, 0, len, StandardCharsets.UTF_8);
-        return new FilePreview(file.getName(), clean, size, lastModified, binary, truncated, text);
+        String renderedHtml = (!binary && text != null && MarkdownRenderer.isMarkdownPath(clean))
+                ? MarkdownRenderer.render(text)
+                : null;
+        return new FilePreview(file.getName(), clean, size, lastModified, binary, truncated, text, renderedHtml);
     }
 
     /** Thrown by {@link #sha256(Run, String, long)} when a file is larger than the allowed limit. */
@@ -247,11 +271,10 @@ public final class ArtifactTree {
      *         escapes the root through a symlink
      */
     @CheckForNull
-    private static VirtualFile resolveReadableFile(Run<?, ?> run, String clean) throws IOException {
+    private static VirtualFile resolveReadableFile(@CheckForNull VirtualFile root, String clean) throws IOException {
         if (clean.isEmpty()) {
             return null;
         }
-        VirtualFile root = run.getArtifactManager().root();
         if (root == null || !root.exists() || !root.isDirectory()) {
             return null;
         }
@@ -276,7 +299,15 @@ public final class ArtifactTree {
      */
     @CheckForNull
     public static String sha256(Run<?, ?> run, String path, long maxBytes) throws IOException {
-        VirtualFile file = resolveReadableFile(run, sanitize(path));
+        return sha256(run.getArtifactManager().root(), path, maxBytes);
+    }
+
+    /**
+     * Computes the lowercase SHA-256 hex digest of a single file under a {@link VirtualFile} root.
+     */
+    @CheckForNull
+    public static String sha256(@CheckForNull VirtualFile root, String path, long maxBytes) throws IOException {
+        VirtualFile file = resolveReadableFile(root, sanitize(path));
         if (file == null) {
             return null;
         }

@@ -1,20 +1,25 @@
 /*
- * Artifact Explorer: Progressive enhancement for Jenkins Job & Build summary pages.
- * Turns classic flat <table class="fileList"> into an interactive, searchable tree view.
+ * Artifact Explorer: Progressive enhancement for classic "Last Successful Artifacts"
+ * and "Build Artifacts" tables (table.fileList) on Job and Build summary pages.
  */
 (function () {
   'use strict';
-
-  // Do not run on the dedicated Artifact Explorer page itself or when legacy escape hatch is used
-  if (document.getElementById('artifact-explorer') || window.location.search.includes('legacy=1')) {
-    return;
-  }
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
     if (text !== undefined) node.textContent = text;
     return node;
+  }
+
+  function applyJenkinsBehaviour(container) {
+    if (container && window.Behaviour && typeof window.Behaviour.applySubtree === 'function') {
+      try {
+        window.Behaviour.applySubtree(container, false);
+      } catch (e) {
+        // ignore if Behaviour is not available
+      }
+    }
   }
 
   function svgIcon(kind) {
@@ -29,13 +34,14 @@
       folder: 'M1.5 3A1.5 1.5 0 0 1 3 1.5h3l1.5 1.5H13A1.5 1.5 0 0 1 14.5 4.5v8A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5z',
       file: 'M3.5 1.5h6l3 3v10h-9zM9 1.5v3.5h3.5',
       caret: 'M6 3.5l4.5 4.5L6 12.5',
-      tree: 'M8 1v14M8 4H4m4 4H3m5 4H4M8 3h4m-4 4h5m-5 4h4',
-      flat: 'M3 3h10M3 7h10M3 11h10M3 15h6',
+      tree: 'M2 3.5h3v3H2zM7 9.5h3v3H7zM7 3.5h3v3H7zM3.5 6.5v4.5H7M5 5h2',
+      flat: 'M2.5 4h11M2.5 8h11M2.5 12h11',
       external: 'M384 224v184a40 40 0 01-40 40H104a40 40 0 01-40-40V168a40 40 0 0140-40h167.48M336 64h112v112M224 288L440 72',
-      download: 'M8 2v8m0 0L5 7m3 3l3-3M3 13h10',
-      package: 'M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5 8 5.961 14.154 3.5 8.186 1.113zM15 4.239l-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923l6.5 2.6z',
-      copy: 'M5 4h6a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm-2 8V3a1 1 0 0 1 1-1h7',
-      check: 'M3.5 8.5l3 3 6-7'
+      search: 'M7 2.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM10.5 10.5L14 14',
+      fingerprint: 'M8 1.5a6.5 6.5 0 0 0-6.5 6.5c0 2.2.8 4.2 2.1 5.6M8 4a4 4 0 0 1 4 4c0 1.8-.5 3.6-1.4 5M8 6.5a1.5 1.5 0 0 1 1.5 1.5c0 1.5-.4 3-1.2 4.2M5.5 12.5c-.6-1.2-1-2.8-1-4.5a3.5 3.5 0 0 1 3.5-3.5',
+      copy: 'M5.5 2.5h7A1.5 1.5 0 0 1 14 4v7a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 4 11V4a1.5 1.5 0 0 1 1.5-1.5zM2.5 5.5v7A1.5 1.5 0 0 0 4 14h7',
+      check: 'M3 8.5l3.5 3.5 6.5-7',
+      package: 'M8 1.5l6 3.2v6.6L8 14.5 2 11.3V4.7L8 1.5zM2 4.7l6 3.3 6-3.3M8 8v6.5'
     };
     path.setAttribute('d', shapes[kind] || shapes.file);
     if (kind === 'external') {
@@ -45,8 +51,13 @@
     return svg;
   }
 
+  function escapeRegExp(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   function getExtension(path) {
-    const name = path.substring(path.lastIndexOf('/') + 1).toLowerCase();
+    const slashIdx = path.lastIndexOf('/');
+    const name = (slashIdx >= 0 ? path.substring(slashIdx + 1) : path).toLowerCase();
     if (name.endsWith('.tar.gz')) return '.tar.gz';
     if (name.endsWith('.tar.bz2')) return '.tar.bz2';
     if (name.endsWith('.tar.xz')) return '.tar.xz';
@@ -58,23 +69,21 @@
   }
 
   function highlight(text, query) {
-    const fragment = document.createDocumentFragment();
+    const frag = document.createDocumentFragment();
     if (!query) {
-      fragment.appendChild(document.createTextNode(text));
-      return fragment;
+      frag.appendChild(document.createTextNode(text));
+      return frag;
     }
-    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp('(' + escaped + ')', 'ig');
-    text.split(regex).forEach((part, index) => {
+    const regex = new RegExp('(' + escapeRegExp(query) + ')', 'ig');
+    text.split(regex).forEach((part, idx) => {
       if (!part) return;
-      if (index % 2 === 1) {
-        const mark = el('mark', '', part);
-        fragment.appendChild(mark);
+      if (idx % 2 === 1) {
+        frag.appendChild(el('mark', 'ae-sum-mark', part));
       } else {
-        fragment.appendChild(document.createTextNode(part));
+        frag.appendChild(document.createTextNode(part));
       }
     });
-    return fragment;
+    return frag;
   }
 
   function notify(message, isWarning) {
@@ -96,25 +105,8 @@
         await navigator.clipboard.writeText(text);
         return true;
       } catch (e) {
-        // Fall back to hidden textarea execCommand
+        // Clipboard API unavailable or rejected
       }
-    }
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.className = 'ae-clipboard-buffer';
-      ta.setAttribute('readonly', '');
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      ta.setSelectionRange(0, text.length);
-      const successful = document.execCommand('copy');
-      document.body.removeChild(ta);
-      if (successful) {
-        return true;
-      }
-    } catch (err) {
-      // ignore
     }
     return false;
   }
@@ -129,60 +121,66 @@
       const firstLink = table.querySelector('a[href*="/artifact/"]');
       if (!firstLink) return;
 
-      table.dataset.aeEnhanced = 'true';
+    table.dataset.aeEnhanced = 'true';
 
-    // Find main artifact directory URL for the full explorer link
-    const artIdx = firstLink.href.indexOf('/artifact/');
-    const artifactRootUrl = artIdx !== -1 ? firstLink.href.substring(0, artIdx + 10) : firstLink.href;
+    // Determine artifact root URL from the first artifact link
+    const rawHref = firstLink.getAttribute('href') || '';
+    const artIdx = rawHref.indexOf('/artifact/');
+    const artifactRootUrl = artIdx >= 0 ? rawHref.substring(0, artIdx + '/artifact/'.length) : 'artifact/';
+
     const encodePath = (p) => p.split('/').map(encodeURIComponent).join('/');
 
-    // Parse files into hierarchical tree and flat list
-    const rootNode = { name: '', path: '', isDirectory: true, children: new Map(), files: [] };
+    // Parse all rows from classic table.fileList
+    const rootNode = { name: '', path: '', children: new Map(), files: [] };
     const allFiles = [];
-    let hasSubdirectories = false;
 
     fileRows.forEach((tr) => {
-      const a = tr.querySelector('a[href*="/artifact/"]');
-      if (!a) return;
-      const href = a.getAttribute('href');
-      const artIdx = href.indexOf('/artifact/');
-      if (artIdx === -1) return;
+      const cells = tr.querySelectorAll('td');
+      if (cells.length < 2) return;
 
-      const rawRelPath = href.substring(artIdx + 10);
-      let decodedRelPath = rawRelPath;
-      try {
-        decodedRelPath = decodeURIComponent(rawRelPath);
-      } catch (e) {}
+      const mainLink = cells[1].querySelector('a[href*="/artifact/"]:not([href*="/*view*/"]):not([href*="/*fingerprint*/"])');
+      if (!mainLink) return;
 
-      // Strip query / hash / trailing view tokens
-      decodedRelPath = decodedRelPath.replace(/(\/\*view\*|\/\*fingerprint\*).*$/, '');
-      if (decodedRelPath.endsWith('/')) {
-        decodedRelPath = decodedRelPath.substring(0, decodedRelPath.length - 1);
-      }
+      const href = mainLink.getAttribute('href') || '';
+      const idx = href.indexOf('/artifact/');
+      if (idx < 0) return;
 
-      const sizeCell = tr.querySelector('.fileSize');
+      const relEncoded = href.substring(idx + '/artifact/'.length);
+      if (!relEncoded || relEncoded.includes('/*')) return;
+
+      const segments = relEncoded.split('/').map((s) => {
+        try {
+          return decodeURIComponent(s);
+        } catch (e) {
+          return s;
+        }
+      });
+
+      const viewLink = cells[1].querySelector('a[href*="/*view*/"]');
+      const viewHref = viewLink ? viewLink.getAttribute('href') : (href + '/*view*/');
+
+      const sizeCell = tr.querySelector('td.fileSize');
       const sizeText = sizeCell ? sizeCell.textContent.trim() : '';
 
-      const viewLink = tr.querySelector('a[href*="/*view*/"]');
-      const viewHref = viewLink ? viewLink.getAttribute('href') : null;
-
-      const fpLink = tr.querySelector('a[href*="/*fingerprint*/"]');
-      const fpHref = fpLink ? fpLink.getAttribute('href') : null;
-
-      const segments = decodedRelPath.split('/').filter(Boolean);
-      if (segments.length > 1) {
-        hasSubdirectories = true;
+      let fpHref = null;
+      for (let i = 2; i < cells.length; i++) {
+        const fpLink = cells[i].querySelector('a[href*="/*fingerprint*/"], a[href*="/fingerprint/"]');
+        if (fpLink) {
+          fpHref = fpLink.getAttribute('href');
+          break;
+        }
       }
 
+      // Insert into hierarchical tree
       let curr = rootNode;
+      let accPath = '';
       for (let i = 0; i < segments.length - 1; i++) {
         const seg = segments[i];
+        accPath = accPath ? accPath + '/' + seg : seg;
         if (!curr.children.has(seg)) {
-          const dirPath = segments.slice(0, i + 1).join('/');
           curr.children.set(seg, {
             name: seg,
-            path: dirPath,
-            isDirectory: true,
+            path: accPath,
             children: new Map(),
             files: []
           });
@@ -190,7 +188,8 @@
         curr = curr.children.get(seg);
       }
 
-      const fileName = segments.length > 0 ? segments[segments.length - 1] : a.textContent.trim();
+      const fileName = segments[segments.length - 1];
+      const decodedRelPath = segments.join('/');
       const fileObj = {
         name: fileName,
         path: decodedRelPath,
@@ -227,7 +226,7 @@
     // Link to full explorer
     const explorerLink = el('a', 'ae-sum-link', 'Full Explorer ');
     explorerLink.href = artifactRootUrl;
-    explorerLink.title = 'Open in full Artifact Explorer';
+    explorerLink.setAttribute('tooltip', 'Open in full Artifact Explorer');
     explorerLink.appendChild(svgIcon('external'));
 
     toolbar.append(toggleGroup, searchWrap, explorerLink);
@@ -240,7 +239,7 @@
       activeSummaryExt = ext;
       sumPillsBar.querySelectorAll('.ae-sum-pill').forEach((p) => {
         const isTarget = ext === null ? !p.dataset.ext : p.dataset.ext === ext;
-        p.classList.toggle('ae-sum-pill--active', isTarget);
+        p.classList.toggle('jenkins-button--primary', isTarget);
       });
       applyFilter();
     }
@@ -255,14 +254,14 @@
 
     if (extCounts.size > 1) {
       const sortedExts = Array.from(extCounts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-      const allPill = el('button', 'ae-sum-pill ae-sum-pill--active');
+      const allPill = el('button', 'jenkins-button jenkins-button--primary ae-sum-pill');
       allPill.type = 'button';
       allPill.append(el('span', '', 'All'), el('span', 'ae-sum-pill-count', String(allFiles.length)));
       allPill.addEventListener('click', () => setSummaryExt(null));
       sumPillsBar.appendChild(allPill);
 
       sortedExts.slice(0, 10).forEach(([ext, count]) => {
-        const pill = el('button', 'ae-sum-pill');
+        const pill = el('button', 'jenkins-button ae-sum-pill');
         pill.type = 'button';
         pill.dataset.ext = ext;
         pill.append(el('span', '', ext), el('span', 'ae-sum-pill-count', String(count)));
@@ -317,7 +316,7 @@
           const actions = el('span', 'ae-sum-actions');
           const zipLink = el('a', 'ae-sum-act-link', 'zip');
           zipLink.href = artifactRootUrl + encodePath(subDir.path) + '/*zip*/' + encodeURIComponent(subDir.name) + '.zip';
-          zipLink.title = 'Download ' + subDir.name + ' as .zip';
+          zipLink.setAttribute('tooltip', 'Download ' + subDir.name + ' as .zip');
           zipLink.setAttribute('aria-label', 'Download ' + subDir.name + ' as .zip');
           zipLink.addEventListener('click', (e) => e.stopPropagation());
           actions.appendChild(zipLink);
@@ -400,6 +399,7 @@
         treeRootEl.appendChild(el('div', 'ae-sum-empty', 'No matching artifacts found.'));
       } else {
         treeRootEl.appendChild(treeDom);
+        applyJenkinsBehaviour(treeRootEl);
       }
     }
 
@@ -444,6 +444,7 @@
         ul.appendChild(li);
       });
       flatRootEl.appendChild(ul);
+      applyJenkinsBehaviour(flatRootEl);
     }
 
     // Toggle view handler
@@ -485,6 +486,7 @@
 
     // Insert wrapper right before the table
     table.parentNode.insertBefore(wrapper, table);
+    applyJenkinsBehaviour(toolbar);
 
     // Respect saved preference (default to tree)
     const saved = (function () {
@@ -506,172 +508,193 @@
       if (mainPanel.dataset.aeFpEnhanced === 'true') return;
       mainPanel.dataset.aeFpEnhanced = 'true';
 
-    const h1 = mainPanel.querySelector('h1');
-    const fileName = h1 ? h1.textContent.trim() : 'Artifact Fingerprint';
+      const h1 = mainPanel.querySelector('h1');
+      const fileName = h1 ? h1.textContent.trim() : 'Artifact Fingerprint';
 
-    // Extract MD5
-    let md5Hash = '';
-    if (md5El) {
-      const match = md5El.textContent.match(/([a-fA-F0-9]{32})/);
-      if (match) md5Hash = match[1];
-    }
-
-    // Extract Introduced info & origin build link
-    let introducedHtml = '';
-    let originBuildHref = '';
-    const introDiv = md5El ? md5El.nextElementSibling : null;
-    if (introDiv) {
-      const originLink = introDiv.querySelector('a');
-      if (originLink) {
-        originBuildHref = originLink.getAttribute('href') || '';
+      // Extract MD5
+      let md5Hash = '';
+      if (md5El) {
+        const match = md5El.textContent.match(/([a-fA-F0-9]{32})/);
+        if (match) md5Hash = match[1];
       }
-      introducedHtml = introDiv.innerHTML;
-    }
 
-    // Extract usage entries from table
-    const usages = [];
-    if (fpTable) {
-      fpTable.querySelectorAll('tr').forEach((tr) => {
-        const jobHeader = tr.querySelector('.fingerprint-summary-header');
-        const jobLink = jobHeader ? jobHeader.querySelector('a') : null;
-        const jobName = jobLink ? jobLink.textContent.trim() : (jobHeader ? jobHeader.textContent.trim() : '');
-        const jobHref = jobLink ? jobLink.getAttribute('href') : '';
+      // Extract Introduced info & origin build link (including when provided outside Jenkins)
+      let introducedHtml = '';
+      let originBuildHref = '';
+      const introDiv = md5El ? md5El.nextElementSibling : null;
+      if (introDiv && introDiv.tagName === 'DIV') {
+        const originLink = introDiv.querySelector('a');
+        if (originLink) {
+          const href = originLink.getAttribute('href') || '';
+          if (/\/\d+\/?$/.test(href)) {
+            originBuildHref = href;
+          }
+        }
+        introducedHtml = introDiv.innerHTML.trim();
+      }
 
-        const buildCells = Array.from(tr.querySelectorAll('td')).filter(
-          (td) => !td.classList.contains('fingerprint-summary-header')
-        );
-        const builds = [];
-        buildCells.forEach((cell) => {
-          cell.querySelectorAll('a').forEach((a) => {
-            builds.push({
-              name: a.textContent.trim(),
-              href: a.getAttribute('href')
+      // Extract usage entries from table (preserving one row per job and build ranges like #7 - #10)
+      const usages = [];
+      if (fpTable) {
+        fpTable.querySelectorAll('tr').forEach((tr) => {
+          const jobHeader = tr.querySelector('.fingerprint-summary-header');
+          const jobLink = jobHeader ? jobHeader.querySelector('a') : null;
+          const jobName = jobLink ? jobLink.textContent.trim() : (jobHeader ? jobHeader.textContent.trim() : '');
+          const jobHref = jobLink ? jobLink.getAttribute('href') : '';
+
+          const buildCells = Array.from(tr.querySelectorAll('td')).filter(
+            (td) => !td.classList.contains('fingerprint-summary-header')
+          );
+          let latestBuildHref = '';
+          buildCells.forEach((cell) => {
+            cell.querySelectorAll('a').forEach((a) => {
+              const href = a.getAttribute('href') || '';
+              if (/\/\d+\/?$/.test(href)) {
+                latestBuildHref = href;
+              }
             });
           });
+          if (jobName) {
+            usages.push({ jobName, jobHref, buildCells, latestBuildHref });
+          }
         });
-        if (jobName) {
-          usages.push({ jobName, jobHref, builds });
+      }
+
+      // Hide original raw elements cleanly
+      if (h1) h1.style.display = 'none';
+      if (md5El) md5El.style.display = 'none';
+      if (introDiv && introDiv.tagName === 'DIV') introDiv.style.display = 'none';
+      const h2 = mainPanel.querySelector('h2');
+      if (h2) h2.style.display = 'none';
+      const introP = mainPanel.querySelector('p');
+      if (introP) introP.style.display = 'none';
+      if (fpTable) fpTable.style.display = 'none';
+
+      // Create modern container
+      const fpRoot = el('div', 'ae-fp-container');
+
+      // 1. Hero Card
+      const heroCard = el('div', 'ae-fp-card ae-fp-hero');
+      const heroHeader = el('div', 'ae-fp-hero-header');
+      const iconWrap = el('div', 'ae-fp-icon-wrap');
+      iconWrap.appendChild(svgIcon('package'));
+
+      const titleGroup = el('div', 'ae-fp-title-group');
+      const title = el('h1', 'ae-fp-title', fileName);
+      const subtitle = el('div', 'ae-fp-subtitle', 'Artifact Fingerprint & Provenance');
+      titleGroup.append(title, subtitle);
+      heroHeader.append(iconWrap, titleGroup);
+
+      // Hash Pill
+      const hashRow = el('div', 'ae-fp-hash-row');
+      const hashLabel = el('span', 'ae-fp-hash-label', 'MD5 CHECKSUM');
+      const hashVal = el('code', 'ae-fp-hash-code', md5Hash || 'N/A');
+      const copyBtn = el('button', 'ae-fp-btn', ' Copy');
+      copyBtn.type = 'button';
+      copyBtn.prepend(svgIcon('copy'));
+      copyBtn.addEventListener('click', async () => {
+        if (!md5Hash) return;
+        const success = await copyTextToClipboard(md5Hash);
+        if (success) {
+          copyBtn.textContent = ' Copied!';
+          copyBtn.prepend(svgIcon('check'));
+          notify('MD5 checksum copied to clipboard');
+          setTimeout(() => {
+            copyBtn.textContent = ' Copy';
+            copyBtn.prepend(svgIcon('copy'));
+          }, 2000);
+        } else {
+          notify('Could not copy to clipboard', true);
         }
       });
-    }
+      hashRow.append(hashLabel, hashVal, copyBtn);
 
-    // Hide original raw elements cleanly
-    if (h1) h1.style.display = 'none';
-    if (md5El) md5El.style.display = 'none';
-    if (introDiv) introDiv.style.display = 'none';
-    const h2 = mainPanel.querySelector('h2');
-    if (h2) h2.style.display = 'none';
-    const introP = mainPanel.querySelector('p');
-    if (introP) introP.style.display = 'none';
-    if (fpTable) fpTable.style.display = 'none';
-
-    // Create modern container
-    const fpRoot = el('div', 'ae-fp-container');
-
-    // 1. Hero Card
-    const heroCard = el('div', 'ae-fp-card ae-fp-hero');
-    const heroHeader = el('div', 'ae-fp-hero-header');
-    const iconWrap = el('div', 'ae-fp-icon-wrap');
-    iconWrap.appendChild(svgIcon('package'));
-
-    const titleGroup = el('div', 'ae-fp-title-group');
-    const title = el('h1', 'ae-fp-title', fileName);
-    const subtitle = el('div', 'ae-fp-subtitle', 'Artifact Fingerprint & Provenance');
-    titleGroup.append(title, subtitle);
-    heroHeader.append(iconWrap, titleGroup);
-
-    // Hash Pill
-    const hashRow = el('div', 'ae-fp-hash-row');
-    const hashLabel = el('span', 'ae-fp-hash-label', 'MD5 CHECKSUM');
-    const hashVal = el('code', 'ae-fp-hash-code', md5Hash || 'N/A');
-    const copyBtn = el('button', 'ae-fp-btn', ' Copy');
-    copyBtn.type = 'button';
-    copyBtn.prepend(svgIcon('copy'));
-    copyBtn.addEventListener('click', async () => {
-      if (!md5Hash) return;
-      const success = await copyTextToClipboard(md5Hash);
-      if (success) {
-        copyBtn.textContent = ' Copied!';
-        copyBtn.prepend(svgIcon('check'));
-        notify('MD5 checksum copied to clipboard');
-        setTimeout(() => {
-          copyBtn.textContent = ' Copy';
-          copyBtn.prepend(svgIcon('copy'));
-        }, 2000);
-      } else {
-        notify('Could not copy to clipboard', true);
+      // Meta details (shown both when introduced by a Jenkins build and when provided outside Jenkins)
+      const metaDetails = el('div', 'ae-fp-meta-details');
+      if (introducedHtml) {
+        const introSpan = el('div', 'ae-fp-meta-item');
+        introSpan.innerHTML = introducedHtml;
+        introSpan.querySelectorAll('a').forEach((a) => {
+          a.classList.add('ae-fp-link', 'model-link');
+        });
+        metaDetails.appendChild(introSpan);
       }
-    });
-    hashRow.append(hashLabel, hashVal, copyBtn);
 
-    // Meta details
-    const metaDetails = el('div', 'ae-fp-meta-details');
-    if (originBuildHref) {
-      const introSpan = el('div', 'ae-fp-meta-item');
-      introSpan.innerHTML = introducedHtml;
-      metaDetails.appendChild(introSpan);
-    }
+      // Hero Action Buttons
+      const heroActions = el('div', 'ae-fp-actions');
+      if (originBuildHref) {
+        const explorerBtn = el('a', 'jenkins-button jenkins-button--primary', 'View in Artifact Explorer');
+        explorerBtn.href = originBuildHref.endsWith('/') ? originBuildHref + 'artifact/' : originBuildHref + '/artifact/';
+        explorerBtn.appendChild(svgIcon('external'));
+        heroActions.appendChild(explorerBtn);
+      }
 
-    // Hero Action Buttons
-    const heroActions = el('div', 'ae-fp-actions');
-    if (originBuildHref) {
-      const explorerBtn = el('a', 'jenkins-button jenkins-button--primary ae-fp-action-btn', 'View in Artifact Explorer');
-      explorerBtn.href = originBuildHref.endsWith('/') ? originBuildHref + 'artifact/' : originBuildHref + '/artifact/';
-      explorerBtn.appendChild(svgIcon('external'));
-      heroActions.appendChild(explorerBtn);
-    }
+      heroCard.append(heroHeader, hashRow, metaDetails, heroActions);
 
-    heroCard.append(heroHeader, hashRow, metaDetails, heroActions);
+      // 2. Usage Table Card
+      const usageCard = el('div', 'ae-fp-card ae-fp-usage-card');
+      const usageHeader = el('div', 'ae-fp-card-header');
+      const usageTitle = el('h2', 'ae-fp-card-title', 'Usage History & Lineage');
+      const usageDesc = el('p', 'ae-fp-card-desc', 'All pipelines and builds recorded using or producing this artifact:');
+      usageHeader.append(usageTitle, usageDesc);
 
-    // 2. Usage Table Card
-    const usageCard = el('div', 'ae-fp-card ae-fp-usage-card');
-    const usageHeader = el('div', 'ae-fp-card-header');
-    const usageTitle = el('h2', 'ae-fp-card-title', 'Usage History & Lineage');
-    const usageDesc = el('p', 'ae-fp-card-desc', 'All pipelines and builds recorded using or producing this artifact:');
-    usageHeader.append(usageTitle, usageDesc);
+      const tableWrap = el('div', 'ae-fp-table-wrap');
+      const modernTable = el('table', 'ae-fp-table');
+      const thead = el('thead');
+      thead.innerHTML = '<tr><th>Pipeline / Job</th><th>Builds</th><th>Action</th></tr>';
+      modernTable.appendChild(thead);
 
-    const tableWrap = el('div', 'ae-fp-table-wrap');
-    const modernTable = el('table', 'ae-fp-table');
-    const thead = el('thead');
-    thead.innerHTML = '<tr><th>Pipeline / Job</th><th>Build</th><th>Action</th></tr>';
-    modernTable.appendChild(thead);
-
-    const tbody = el('tbody');
-    if (usages.length === 0) {
-      const emptyRow = el('tr');
-      emptyRow.innerHTML = '<td colspan="3" class="ae-fp-empty">No usage records found.</td>';
-      tbody.appendChild(emptyRow);
-    } else {
-      usages.forEach((u) => {
-        u.builds.forEach((b) => {
+      const tbody = el('tbody');
+      if (usages.length === 0) {
+        const emptyRow = el('tr');
+        emptyRow.innerHTML = '<td colspan="3" class="ae-fp-empty">No usage records found.</td>';
+        tbody.appendChild(emptyRow);
+      } else {
+        usages.forEach((u) => {
           const tr = el('tr');
           const tdJob = el('td', 'ae-fp-cell-job');
-          const jobLink = el('a', 'ae-fp-link', u.jobName);
+          const jobLink = el('a', 'ae-fp-link model-link', u.jobName);
           jobLink.href = u.jobHref;
           tdJob.appendChild(jobLink);
 
           const tdBuild = el('td', 'ae-fp-cell-build');
-          const bLink = el('a', 'ae-fp-build-badge', b.name);
-          bLink.href = b.href;
-          tdBuild.appendChild(bLink);
+          const buildsWrap = el('div', 'ae-fp-builds-wrap');
+          u.buildCells.forEach((cell) => {
+            Array.from(cell.childNodes).forEach((child) => {
+              const cloned = child.cloneNode(true);
+              if (cloned.nodeType === Node.ELEMENT_NODE && cloned.tagName === 'A') {
+                cloned.classList.add('ae-fp-build-badge', 'model-link');
+                buildsWrap.appendChild(cloned);
+              } else if (cloned.nodeType === Node.TEXT_NODE) {
+                const text = cloned.textContent.replace(/\u00a0/g, ' ').trim();
+                if (text) {
+                  buildsWrap.appendChild(el('span', 'ae-fp-range-sep', text));
+                }
+              } else {
+                buildsWrap.appendChild(cloned);
+              }
+            });
+          });
+          tdBuild.appendChild(buildsWrap);
 
           const tdAction = el('td', 'ae-fp-cell-action');
-          const expLink = el('a', 'ae-fp-btn-link', 'Artifact Explorer ');
+          const baseHref = u.latestBuildHref || (u.jobHref.endsWith('/') ? u.jobHref + 'lastSuccessfulBuild/' : u.jobHref + '/lastSuccessfulBuild/');
+          const expLink = el('a', 'ae-fp-btn-link', 'Artifact Explorer');
           expLink.appendChild(svgIcon('external'));
-          expLink.href = b.href.endsWith('/') ? b.href + 'artifact/' : b.href + '/artifact/';
+          expLink.href = baseHref.endsWith('/') ? baseHref + 'artifact/' : baseHref + '/artifact/';
           tdAction.appendChild(expLink);
 
           tr.append(tdJob, tdBuild, tdAction);
           tbody.appendChild(tr);
         });
-      });
-    }
-    modernTable.appendChild(tbody);
-    tableWrap.appendChild(modernTable);
-    usageCard.append(usageHeader, tableWrap);
+      }
+      modernTable.appendChild(tbody);
+      tableWrap.appendChild(modernTable);
+      usageCard.append(usageHeader, tableWrap);
 
-    fpRoot.append(heroCard, usageCard);
-    mainPanel.prepend(fpRoot);
+      fpRoot.append(heroCard, usageCard);
+      mainPanel.prepend(fpRoot);
+      applyJenkinsBehaviour(fpRoot);
     } catch (err) {
       console.warn('Artifact Explorer: could not enhance fingerprint page', err);
     }
@@ -687,23 +710,4 @@
   } else {
     init();
   }
-
-  // Also support dynamic/AJAX page updates
-  const observer = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      for (const node of m.addedNodes) {
-        if (node.nodeType === 1) {
-          if (node.matches && node.matches('table.fileList')) {
-            enhanceFileListTable(node);
-          } else if (node.querySelectorAll) {
-            node.querySelectorAll('table.fileList').forEach(enhanceFileListTable);
-          }
-          if (node.matches && (node.matches('.md5sum') || node.matches('table.fingerprint-summary'))) {
-            enhanceFingerprintPage();
-          }
-        }
-      }
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
 })();

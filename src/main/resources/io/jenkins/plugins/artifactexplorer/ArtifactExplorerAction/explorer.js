@@ -21,7 +21,9 @@
       return;
     }
 
-    const buildUrl = root.dataset.buildUrl;
+    const buildUrl = root.dataset.buildUrl || '/';
+    const artifactRootUrl = root.dataset.artifactRootUrl || (buildUrl + 'artifact/');
+    const explorerRootUrl = root.dataset.explorerRootUrl || (buildUrl + 'artifact-explorer/');
     const basePath = root.dataset.initialPath || '';
     const MAX_SEARCH_RESULTS = 500;
     const EXPAND_ALL_BUDGET = 5000;
@@ -42,120 +44,29 @@
       return node;
     }
 
+    function applyJenkinsBehaviour(container) {
+      if (container && window.Behaviour && typeof window.Behaviour.applySubtree === 'function') {
+        try {
+          window.Behaviour.applySubtree(container, false);
+        } catch (e) {
+          // ignore if Behaviour is not fully initialized
+        }
+      }
+    }
+
+    function setTooltip(node, text) {
+      if (!node || !text) {
+        return;
+      }
+      node.setAttribute('tooltip', text);
+      node.setAttribute('aria-label', text);
+      if (node._tippy && typeof node._tippy.setContent === 'function') {
+        node._tippy.setContent(text);
+      }
+    }
+
     function escapeHtml(str) {
       return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function inlineMarkdown(text) {
-      return text
-        .replace(/`([^`]+)`/g, '<code class="ae-md-inline-code">$1</code>')
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/__([^_]+)__/g, '<strong>$1</strong>')
-        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-        .replace(/_([^_]+)_/g, '<em>$1</em>')
-        .replace(/~~([^~]+)~~/g, '<del>$1</del>')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkLabel, url) => {
-          const cleanUrl = url.trim();
-          if (/^(https?:|mailto:|\/|\.\/|#)/i.test(cleanUrl)) {
-            return `<a href="${cleanUrl}" target="_blank" rel="noopener" class="ae-md-link">${linkLabel}</a>`;
-          }
-          return linkLabel;
-        });
-    }
-
-    function renderMarkdown(md) {
-      let raw = escapeHtml(md || '');
-
-      // Protect code blocks
-      const codeBlocks = [];
-      raw = raw.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
-        const idx = codeBlocks.length;
-        codeBlocks.push('<pre class="ae-md-pre"><code class="ae-md-code">' + code + '</code></pre>');
-        return '%%CODEBLOCK_' + idx + '%%';
-      });
-
-      // Tables
-      raw = raw.replace(/(?:^|\n)(\|.+?\|\n\|[-:| ]+?\|\n(?:\|.+?\|\n?)+)/g, (match, tableText) => {
-        const lines = tableText.trim().split('\n').filter(Boolean);
-        if (lines.length < 2) return match;
-        const headers = lines[0].split('|').slice(1, -1).map((h) => h.trim());
-        const aligns = lines[1].split('|').slice(1, -1).map((a) => {
-          a = a.trim();
-          if (a.startsWith(':') && a.endsWith(':')) return 'center';
-          if (a.endsWith(':')) return 'right';
-          return 'left';
-        });
-        let html = '<div class="ae-md-table-wrap"><table class="ae-md-table"><thead><tr>';
-        headers.forEach((h, i) => {
-          const align = aligns[i] ? ` class="ae-align-${aligns[i]}"` : '';
-          html += `<th${align}>${inlineMarkdown(h)}</th>`;
-        });
-        html += '</tr></thead><tbody>';
-        for (let i = 2; i < lines.length; i++) {
-          const cells = lines[i].split('|').slice(1, -1).map((c) => c.trim());
-          html += '<tr>';
-          cells.forEach((c, idx) => {
-            const align = aligns[idx] ? ` class="ae-align-${aligns[idx]}"` : '';
-            html += `<td${align}>${inlineMarkdown(c)}</td>`;
-          });
-          html += '</tr>';
-        }
-        html += '</tbody></table></div>';
-        return '\n' + html + '\n';
-      });
-
-      // Blockquotes
-      raw = raw.replace(/(?:^|\n)((?:&gt;[^\n]*\n?)+)/g, (_, block) => {
-        const text = block.split('\n').map((l) => l.replace(/^&gt;\s?/, '')).join('\n');
-        return '\n<blockquote class="ae-md-quote">' + renderMarkdown(text) + '</blockquote>\n';
-      });
-
-      // Lists & Task lists
-      raw = raw.replace(/(?:^|\n)((?:[ \t]*(?:[-*+]|\d+\.)[ \t]+[^\n]*\n?)+)/g, (_, listBlock) => {
-        const lines = listBlock.split('\n').filter(Boolean);
-        const isOrdered = /^[ \t]*\d+\./.test(lines[0]);
-        const tag = isOrdered ? 'ol' : 'ul';
-        let html = `<${tag} class="ae-md-list">`;
-        lines.forEach((line) => {
-          let content = line.replace(/^[ \t]*(?:[-*+]|\d+\.)[ \t]+/, '');
-          let taskCheck = '';
-          if (/^\[ \]\s/.test(content)) {
-            taskCheck = '<input type="checkbox" disabled class="ae-md-task"> ';
-            content = content.substring(4);
-          } else if (/^\[x\]\s/i.test(content)) {
-            taskCheck = '<input type="checkbox" checked disabled class="ae-md-task"> ';
-            content = content.substring(4);
-          }
-          html += `<li>${taskCheck}${inlineMarkdown(content)}</li>`;
-        });
-        html += `</${tag}>`;
-        return '\n' + html + '\n';
-      });
-
-      // Headers
-      raw = raw.replace(/^######\s+(.+)$/gm, '<h6 class="ae-md-h">$1</h6>')
-               .replace(/^#####\s+(.+)$/gm, '<h5 class="ae-md-h">$1</h5>')
-               .replace(/^####\s+(.+)$/gm, '<h4 class="ae-md-h">$1</h4>')
-               .replace(/^###\s+(.+)$/gm, '<h3 class="ae-md-h">$1</h3>')
-               .replace(/^##\s+(.+)$/gm, '<h2 class="ae-md-h">$1</h2>')
-               .replace(/^#\s+(.+)$/gm, '<h1 class="ae-md-h">$1</h1>');
-
-      // Horizontal rules
-      raw = raw.replace(/^(?:---|\*\*\*|___)\s*$/gm, '<hr class="ae-md-hr"/>');
-
-      // Paragraphs
-      const paragraphs = raw.split(/\n\s*\n/).map((p) => {
-        p = p.trim();
-        if (!p) return '';
-        if (/^<(h[1-6]|pre|div|table|blockquote|ul|ol|hr)/i.test(p) || p.startsWith('%%CODEBLOCK_')) {
-          return p;
-        }
-        return '<p class="ae-md-p">' + inlineMarkdown(p.replace(/\n/g, '<br/>')) + '</p>';
-      });
-
-      let out = paragraphs.filter(Boolean).join('\n');
-      out = out.replace(/%%CODEBLOCK_(\d+)%%/g, (_, idx) => codeBlocks[Number(idx)]);
-      return out;
     }
 
     function parseCsvRow(rowStr, delimiter) {
@@ -316,9 +227,10 @@
     }
 
     const encodePath = (p) => p.split('/').map(encodeURIComponent).join('/');
-    const fileUrl = (p) => buildUrl + 'artifact/' + encodePath(p);
+    const fileUrl = (p) => artifactRootUrl + encodePath(p);
     const viewUrl = (p) => fileUrl(p) + '/*view*/';
-    const dirUrl = (p) => (p === '' ? buildUrl + 'artifact/' : fileUrl(p) + '/');
+    const fingerprintUrl = (p) => fileUrl(p) + '/*fingerprint*/';
+    const dirUrl = (p) => (p === '' ? artifactRootUrl : fileUrl(p) + '/');
     const baseName = (p) => p.substring(p.lastIndexOf('/') + 1);
     const absolute = (url) => new URL(url, window.location.href).href;
 
@@ -342,7 +254,7 @@
 
     async function api(endpoint, params) {
       const query = params ? '?' + new URLSearchParams(params).toString() : '';
-      const response = await fetch(buildUrl + 'artifact-explorer/' + endpoint + query, {
+      const response = await fetch(explorerRootUrl + endpoint + query, {
         credentials: 'same-origin',
         headers: { Accept: 'application/json' },
       });
@@ -360,7 +272,13 @@
       const ns = 'http://www.w3.org/2000/svg';
       const svg = document.createElementNS(ns, 'svg');
       // The "external" glyph is the ionicons "open" icon (512 unit grid), same as Jenkins' own external.svg
-      svg.setAttribute('viewBox', kind === 'external' ? '0 0 512 512' : '0 0 16 16');
+      if (kind === 'external') {
+        svg.setAttribute('viewBox', '0 0 512 512');
+      } else if (kind === 'fingerprint') {
+        svg.setAttribute('viewBox', '0 0 24 24');
+      } else {
+        svg.setAttribute('viewBox', '0 0 16 16');
+      }
       svg.setAttribute('class', 'ae-icon ae-icon--' + kind);
       svg.setAttribute('aria-hidden', 'true');
       const path = document.createElementNS(ns, 'path');
@@ -374,6 +292,7 @@
         preview: 'M2.5 3.5h11v9h-11zM5 6.5h6M5 9.5h4',
         close: 'M4 4l8 8M12 4l-8 8',
         external: 'M384 224v184a40 40 0 01-40 40H104a40 40 0 01-40-40V168a40 40 0 0140-40h167.48M336 64h112v112M224 288L440 72',
+        fingerprint: 'M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4M14 13.12c0 2.38 0 6.38-1 8.88M17.29 21.02c.12-.6.43-2.3.5-3.02M2 12a10 10 0 0 1 18-6M2 16h.01M21.8 16c.2-2 .131-5.354 0-6M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2M8.65 22c.21-.66.45-1.32.57-2M9 6.8a6 6 0 0 1 9 5.2v2',
         copy: 'M5 4h6a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm-2 8V3a1 1 0 0 1 1-1h7',
         check: 'M3.5 8.5l3 3 6-7',
         shield: 'M8 1.5l5.5 2.5v4c0 3.8-2.6 6.8-5.5 7.5-2.9-.7-5.5-3.7-5.5-7.5v-4L8 1.5z',
@@ -381,6 +300,8 @@
       path.setAttribute('d', shapes[kind] || shapes.file);
       if (kind === 'external') {
         path.setAttribute('stroke-width', '32');
+      } else if (kind === 'fingerprint') {
+        path.setAttribute('stroke-width', '2');
       }
       svg.appendChild(path);
       return svg;
@@ -389,8 +310,7 @@
     function iconButton(kind, title, onClick) {
       const button = el('button', 'ae-iconbutton');
       button.type = 'button';
-      button.title = title;
-      button.setAttribute('aria-label', title);
+      setTooltip(button, title);
       button.appendChild(svgIcon(kind));
       button.addEventListener('click', onClick);
       return button;
@@ -399,8 +319,7 @@
     function iconLink(kind, title, href, download) {
       const link = el('a', 'ae-iconbutton');
       link.href = href;
-      link.title = title;
-      link.setAttribute('aria-label', title);
+      setTooltip(link, title);
       if (download) {
         link.setAttribute('download', '');
       }
@@ -427,25 +346,8 @@
           await navigator.clipboard.writeText(text);
           return true;
         } catch (e) {
-          // Fall back to hidden textarea execCommand
+          // Clipboard API unavailable or rejected
         }
-      }
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.className = 'ae-clipboard-buffer';
-        ta.setAttribute('readonly', '');
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        ta.setSelectionRange(0, text.length);
-        const successful = document.execCommand('copy');
-        document.body.removeChild(ta);
-        if (successful) {
-          return true;
-        }
-      } catch (err) {
-        // ignore
       }
       return false;
     }
@@ -459,14 +361,12 @@
         const success = await copyTextToClipboard(urlToCopy);
         if (success) {
           const doneLabel = label('Copied', 'Copied!');
-          button.title = doneLabel;
-          button.setAttribute('aria-label', doneLabel);
+          setTooltip(button, doneLabel);
           button.replaceChildren(svgIcon('check'));
           button.classList.add('ae-iconbutton--done');
           notify(customToastMsg || label('ToastLinkCopied', 'Link copied to clipboard'));
           window.setTimeout(() => {
-            button.title = defaultLabel;
-            button.setAttribute('aria-label', defaultLabel);
+            setTooltip(button, defaultLabel);
             button.replaceChildren(svgIcon('link'));
             button.classList.remove('ae-iconbutton--done');
           }, 1500);
@@ -487,14 +387,12 @@
         const success = await copyTextToClipboard(text);
         if (success) {
           const doneLabel = label('Copied', 'Copied!');
-          button.title = doneLabel;
-          button.setAttribute('aria-label', doneLabel);
+          setTooltip(button, doneLabel);
           button.replaceChildren(svgIcon('check'));
           button.classList.add('ae-iconbutton--done');
           notify(label('ToastContentsCopied', 'File contents copied to clipboard'));
           window.setTimeout(() => {
-            button.title = defaultLabel;
-            button.setAttribute('aria-label', defaultLabel);
+            setTooltip(button, defaultLabel);
             button.replaceChildren(svgIcon('copy'));
             button.classList.remove('ae-iconbutton--done');
           }, 1500);
@@ -683,13 +581,15 @@
       openInNewTab.target = '_blank';
       openInNewTab.rel = 'noopener noreferrer';
 
+      const fpLink = iconLink('fingerprint', label('Fingerprint', 'See fingerprints'), fingerprintUrl(path), false);
+
       let currentPreviewText = '';
       const copyContentBtn = copyContentButton(() => currentPreviewText);
       copyContentBtn.hidden = true;
 
       const copyLinkBtn = copyLinkButton(() => window.location.href, label('ToastDeepLinkCopied', 'Shareable deep link copied to clipboard'));
       const closeBtn = iconButton('close', label('Close'), closePreview);
-      headerActions.append(rawLink, dlLink, checksumBtn, openInNewTab, copyContentBtn, copyLinkBtn, closeBtn);
+      headerActions.append(rawLink, dlLink, checksumBtn, openInNewTab, fpLink, copyContentBtn, copyLinkBtn, closeBtn);
       header.append(titleWrap, headerActions);
 
       const meta = el('div', 'ae-preview-meta', path);
@@ -698,6 +598,7 @@
       const body = el('div', 'ae-preview-body');
       body.textContent = label('Loading');
       previewPane.append(header, meta, checksumBar, body);
+      applyJenkinsBehaviour(headerActions);
 
       let calculatedHash = null;
       let isComputing = false;
@@ -759,31 +660,28 @@
           if (matchEntry) {
             badge = el('span', 'ae-checksum-badge ae-checksum-badge--verified');
             badge.append(svgIcon('shield'), el('span', '', 'Verified Match (' + baseName(matchEntry.manifestPath) + ')'));
-            badge.title = matchEntry.manifestPath;
+            setTooltip(badge, matchEntry.manifestPath);
           } else if (mismatchEntry) {
             badge = el('span', 'ae-checksum-badge ae-checksum-badge--mismatch');
             badge.append(svgIcon('shield'), el('span', '', 'Checksum Mismatch!'));
-            badge.title = 'Expected: ' + mismatchEntry.hash + ' in ' + mismatchEntry.manifestPath;
+            setTooltip(badge, 'Expected: ' + mismatchEntry.hash + ' in ' + mismatchEntry.manifestPath);
           } else {
             badge = el('span', 'ae-checksum-badge');
             badge.append(svgIcon('shield'), el('span', '', 'SHA-256'));
           }
 
           const code = el('code', 'ae-checksum-code', calculatedHash);
-          code.title = calculatedHash;
 
           const copyBtn = iconButton('copy', label('CopyHash', 'Copy hash'), async () => {
             const success = await copyTextToClipboard(calculatedHash);
             if (success) {
               const doneLabel = label('Copied', 'Copied!');
-              copyBtn.title = doneLabel;
-              copyBtn.setAttribute('aria-label', doneLabel);
+              setTooltip(copyBtn, doneLabel);
               copyBtn.replaceChildren(svgIcon('check'));
               copyBtn.classList.add('ae-iconbutton--done');
               notify(label('ToastHashCopied', 'SHA-256 hash copied to clipboard'));
               setTimeout(() => {
-                copyBtn.title = label('CopyHash', 'Copy hash');
-                copyBtn.setAttribute('aria-label', label('CopyHash', 'Copy hash'));
+                setTooltip(copyBtn, label('CopyHash', 'Copy hash'));
                 copyBtn.replaceChildren(svgIcon('copy'));
                 copyBtn.classList.remove('ae-iconbutton--done');
               }, 1500);
@@ -793,6 +691,7 @@
           });
 
           checksumBar.append(badge, code, copyBtn);
+          applyJenkinsBehaviour(checksumBar);
         } catch (err) {
           if (seq === previewSequence) {
             checksumBar.replaceChildren();
@@ -857,7 +756,7 @@
           codeContainer.appendChild(pre);
 
           if (isMd) {
-            renderedContainer.innerHTML = renderMarkdown(data.text || '');
+            renderedContainer.innerHTML = data.renderedHtml || escapeHtml(data.text || '');
           } else if (isHtml) {
             const frame = el('iframe', 'ae-preview-frame');
             frame.setAttribute('sandbox', 'allow-same-origin');
@@ -949,6 +848,7 @@
             node.childrenList.appendChild(el('li', 'ae-empty', label('Truncated')));
           }
           node.li.appendChild(node.childrenList);
+          applyJenkinsBehaviour(node.childrenList);
           node.loaded = true;
         } catch (e) {
           setStatus(label('Error') + ' (' + e.message + ')', true);
@@ -1023,7 +923,8 @@
         actions.append(
           iconButton('preview', label('Preview'), () => openPreview(entry.path)),
           iconLink('download', label('Download'), fileUrl(entry.path), true),
-          copyLinkButton(fileUrl(entry.path), label('ToastLinkCopied', 'Link copied to clipboard')));
+          copyLinkButton(fileUrl(entry.path), label('ToastLinkCopied', 'Link copied to clipboard')),
+          iconLink('fingerprint', label('Fingerprint', 'See fingerprints'), fingerprintUrl(entry.path), false));
         row.appendChild(actions);
       }
       li.appendChild(row);
@@ -1203,6 +1104,7 @@
       resultsContainer.replaceChildren();
       if (content) {
         resultsContainer.appendChild(content);
+        applyJenkinsBehaviour(resultsContainer);
       }
     }
 
@@ -1224,7 +1126,7 @@
       activeExtensionFilter = ext;
       pillsBar.querySelectorAll('.ae-pill').forEach((p) => {
         const isTarget = ext === null ? !p.dataset.ext : p.dataset.ext === ext;
-        p.classList.toggle('ae-pill--active', isTarget);
+        p.classList.toggle('jenkins-button--primary', isTarget);
         p.setAttribute('aria-pressed', isTarget ? 'true' : 'false');
       });
       runSearch();
@@ -1252,7 +1154,7 @@
         const sorted = Array.from(extCounts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
         pillsBar.replaceChildren();
 
-        const allPill = el('button', 'ae-pill ae-pill--active');
+        const allPill = el('button', 'jenkins-button jenkins-button--primary ae-pill');
         allPill.type = 'button';
         allPill.setAttribute('aria-pressed', 'true');
         const allLabel = el('span', 'ae-pill-label', label('All', 'All'));
@@ -1262,7 +1164,7 @@
         pillsBar.appendChild(allPill);
 
         sorted.slice(0, 18).forEach(([ext, count]) => {
-          const pill = el('button', 'ae-pill');
+          const pill = el('button', 'jenkins-button ae-pill');
           pill.type = 'button';
           pill.dataset.ext = ext;
           pill.setAttribute('aria-pressed', 'false');
@@ -1350,7 +1252,8 @@
           iconButton('preview', label('Preview'), () => openPreview(path)),
           iconButton('reveal', label('Reveal'), () => revealPath(path)),
           iconLink('download', label('Download'), fileUrl(path), true),
-          copyLinkButton(fileUrl(path), label('ToastLinkCopied', 'Link copied to clipboard')));
+          copyLinkButton(fileUrl(path), label('ToastLinkCopied', 'Link copied to clipboard')),
+          iconLink('fingerprint', label('Fingerprint', 'See fingerprints'), fingerprintUrl(path), false));
         row.appendChild(actions);
         li.appendChild(row);
         list.appendChild(li);
@@ -1544,7 +1447,7 @@
           const focusedRow = document.activeElement ? document.activeElement.closest('.ae-row') : null;
           if (focusedRow && focusedRow.dataset.path) {
             event.preventDefault();
-            const copyBtn = focusedRow.querySelector('.ae-iconbutton[title*="link" i], .ae-iconbutton[title*="Link" i]');
+            const copyBtn = focusedRow.querySelector('.ae-iconbutton[aria-label*="link" i], .ae-iconbutton[tooltip*="link" i]');
             if (copyBtn) {
               copyBtn.click();
             }

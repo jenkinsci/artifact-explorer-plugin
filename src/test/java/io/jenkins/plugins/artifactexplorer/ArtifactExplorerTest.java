@@ -14,7 +14,10 @@ import hudson.model.FreeStyleProject;
 import hudson.model.Item;
 import hudson.model.Run;
 import hudson.tasks.ArtifactArchiver;
+import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import jenkins.model.Jenkins;
 import jenkins.security.ResourceDomainConfiguration;
 import net.sf.json.JSONArray;
@@ -423,7 +426,10 @@ class ArtifactExplorerTest {
     void explorerJellyUsesRunSubpageAdjunctAndDialog(JenkinsRule j) throws Exception {
         projectWithArtifacts(j, "p");
         HtmlPage page = client(j).goTo("job/p/1/artifact/");
-        assertNotNull(page.getElementById("artifact-explorer"));
+        var explorerRoot = page.getElementById("artifact-explorer");
+        assertNotNull(explorerRoot);
+        assertFalse(
+                explorerRoot.getAttribute("data-label-fingerprint").isEmpty(), "fingerprint label should be present");
         assertNotNull(page.getElementById("ae-searchinput"), "static search input should be rendered in Jelly");
         assertNotNull(page.getElementById("ae-expandall"), "static expand button should be rendered in Jelly");
         assertNotNull(page.getElementById("ae-collapseall"), "static collapse button should be rendered in Jelly");
@@ -431,6 +437,7 @@ class ArtifactExplorerTest {
         var helpBtn = page.getElementById("ae-helpbtn");
         assertNotNull(helpBtn, "static help button should be rendered in Jelly");
         assertEquals("dialog-opener", helpBtn.getAttribute("data-type"));
+        assertFalse(helpBtn.getAttribute("tooltip").isEmpty(), "help button should use Jenkins tooltip attribute");
         String dialogId = helpBtn.getAttribute("data-dialog-id");
         assertFalse(dialogId.isEmpty(), "help button should reference l:dialog id");
 
@@ -442,5 +449,61 @@ class ArtifactExplorerTest {
                 html.contains("io/jenkins/plugins/artifactexplorer/ArtifactExplorerAction/explorer.css"),
                 "explorer.css should be loaded via st:adjunct");
         assertFalse(html.contains("<noscript"), "noscript tag should not be present");
+    }
+
+    @Test
+    void markdownPreviewRendersCommonMarkWithHtmlTagsAndSanitizesScripts(JenkinsRule j) throws Exception {
+        FreeStyleProject p = j.createFreeStyleProject("md-job");
+        p.getBuildersList().add(new TestBuilder() {
+            @Override
+            public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
+                    throws InterruptedException, IOException {
+                FilePath ws = build.getWorkspace();
+                ws.child("README.md")
+                        .write(
+                                "<h1>Title</h1>\n### Sub title\n\n| Col A | Col B |\n|---|---|\n| 1 | 2 |\n\n<script>alert(1)</script><p onclick=\"evil()\">Safe</p>",
+                                "UTF-8");
+                return true;
+            }
+        });
+        p.getPublishersList().add(new ArtifactArchiver("README.md"));
+        j.buildAndAssertSuccess(p);
+
+        JenkinsRule.WebClient wc = client(j);
+        JSONObject res = json(wc, "job/md-job/1/artifact-explorer/preview?path=README.md");
+        assertEquals("ok", res.getString("status"));
+        String rendered = res.getJSONObject("data").getString("renderedHtml");
+        assertTrue(rendered.contains("<h1>Title</h1>"), "embedded h1 tag should be preserved");
+        assertTrue(rendered.contains("<h3 id=\"sub-title\">Sub title</h3>"), "markdown heading should be rendered");
+        assertTrue(rendered.contains("<table>"), "GFM table should be rendered");
+        assertFalse(rendered.contains("<script>"), "script tags must be escaped");
+        assertFalse(rendered.contains("onclick"), "event handler attributes must be stripped");
+        assertTrue(rendered.contains("<p>Safe</p>"), "safe paragraph tag should be preserved");
+    }
+
+    @Test
+    void userContentDirectoryIsReplacedAndServedByExplorer(JenkinsRule j) throws Exception {
+        File userContentDir = new File(j.jenkins.getRootDir(), "userContent/docs");
+        assertTrue(userContentDir.mkdirs() || userContentDir.isDirectory());
+        Files.writeString(new File(userContentDir, "guide.md").toPath(), "# User Guide", StandardCharsets.UTF_8);
+
+        JenkinsRule.WebClient wc = client(j);
+        HtmlPage rootPage = wc.goTo("userContent/");
+        assertNotNull(rootPage.getElementById("artifact-explorer"), "/userContent/ should render Artifact Explorer");
+        assertEquals("", rootPage.getElementById("artifact-explorer").getAttribute("data-initial-path"));
+
+        HtmlPage subPage = wc.goTo("userContent/docs/");
+        assertNotNull(subPage.getElementById("artifact-explorer"));
+        assertEquals("docs", subPage.getElementById("artifact-explorer").getAttribute("data-initial-path"));
+
+        JSONObject tree = json(wc, "userContent-explorer/tree?path=docs");
+        assertEquals("ok", tree.getString("status"));
+        JSONArray entries = tree.getJSONObject("data").getJSONArray("entries");
+        assertEquals(1, entries.size());
+        assertEquals("guide.md", entries.getJSONObject(0).getString("name"));
+
+        HtmlPage legacy = wc.goTo("userContent/docs/?legacy=1");
+        assertEquals(null, legacy.getElementById("artifact-explorer"));
+        assertTrue(legacy.asXml().contains("fileList"));
     }
 }

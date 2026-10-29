@@ -1,24 +1,32 @@
 package io.jenkins.plugins.artifactexplorer;
 
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import hudson.Extension;
 import hudson.Functions;
 import hudson.model.Action;
+import hudson.model.RootAction;
 import hudson.model.Run;
 import hudson.util.HttpResponses;
+import java.io.File;
 import java.io.IOException;
+import jenkins.model.Jenkins;
+import jenkins.util.VirtualFile;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.HttpResponse;
 import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.verb.GET;
 
 /**
- * The explorer page for one build, plus the small JSON API its script uses.
+ * The explorer page for one build (or controller {@code /userContent/}), plus the small JSON API its script uses.
  *
- * <p>Served at {@code <build>/artifact-explorer/}. {@link ArtifactExplorerFilter} forwards classic
- * {@code <build>/artifact/<dir>/} requests here so the old URL shows the explorer.
+ * <p>Served at {@code <build>/artifact-explorer/} (and {@code /userContent-explorer/}). {@link ArtifactExplorerFilter}
+ * forwards classic {@code <build>/artifact/<dir>/} and {@code /userContent/<dir>/} requests here so the old URL shows
+ * the explorer.
  */
 public class ArtifactExplorerAction implements Action {
 
@@ -31,16 +39,19 @@ public class ArtifactExplorerAction implements Action {
     /** Largest file {@link #doSha256(String)} will hash, so one request cannot tie up the controller for long. */
     static final long MAX_SHA256_BYTES = 1024L * 1024 * 1024;
 
+    @CheckForNull
     private final Run<?, ?> run;
 
-    public ArtifactExplorerAction(Run<?, ?> run) {
+    public ArtifactExplorerAction(@CheckForNull Run<?, ?> run) {
         this.run = run;
     }
 
+    @CheckForNull
     public Run<?, ?> getRun() {
         return run;
     }
 
+    @CheckForNull
     @Restricted(NoExternalUse.class) // for Jelly
     public Run<?, ?> getObject() {
         return getRun();
@@ -49,7 +60,7 @@ public class ArtifactExplorerAction implements Action {
     @Override
     public String getIconFileName() {
         // Only show the sidebar entry when there is something to explore.
-        return run.getHasArtifacts() ? "symbol-cube" : null;
+        return run != null && run.getHasArtifacts() ? "symbol-cube" : null;
     }
 
     @Override
@@ -64,7 +75,10 @@ public class ArtifactExplorerAction implements Action {
 
     /** Directory to show initially: set by the filter, or given as {@code ?path=} when visited directly. */
     public String getInitialPath() {
-        StaplerRequest2 req = org.kohsuke.stapler.Stapler.getCurrentRequest2();
+        StaplerRequest2 req = Stapler.getCurrentRequest2();
+        if (req == null) {
+            return "";
+        }
         Object forwarded = req.getAttribute(PATH_ATTRIBUTE);
         String raw = forwarded != null ? forwarded.toString() : req.getParameter("path");
         try {
@@ -76,14 +90,51 @@ public class ArtifactExplorerAction implements Action {
 
     /** URL of the build page, with a trailing slash and the context path. */
     public String getBuildUrl() {
-        return org.kohsuke.stapler.Stapler.getCurrentRequest2().getContextPath() + "/" + run.getUrl();
+        StaplerRequest2 req = Stapler.getCurrentRequest2();
+        String ctx = req != null ? req.getContextPath() : "";
+        if (run == null) {
+            return ctx + "/";
+        }
+        return ctx + "/" + run.getUrl();
+    }
+
+    /** URL of the raw artifact / directory root ({@code <build>/artifact/} or {@code /userContent/}). */
+    public String getArtifactRootUrl() {
+        StaplerRequest2 req = Stapler.getCurrentRequest2();
+        String ctx = req != null ? req.getContextPath() : "";
+        if (run == null) {
+            return ctx + "/userContent/";
+        }
+        return ctx + "/" + run.getUrl() + "artifact/";
+    }
+
+    /** URL of the JSON API / explorer endpoint ({@code <build>/artifact-explorer/} or {@code /userContent-explorer/}). */
+    public String getExplorerRootUrl() {
+        StaplerRequest2 req = Stapler.getCurrentRequest2();
+        String ctx = req != null ? req.getContextPath() : "";
+        if (run == null) {
+            return ctx + "/" + getUrlName() + "/";
+        }
+        return ctx + "/" + run.getUrl() + getUrlName() + "/";
     }
 
     public int getMaxEntries() {
         return ExplorerConfiguration.get().getMaxEntries();
     }
 
-    private void checkAccess() {
+    @CheckForNull
+    protected VirtualFile root() {
+        if (run != null) {
+            return run.getArtifactManager().root();
+        }
+        return VirtualFile.forFile(new File(Jenkins.get().getRootDir(), "userContent"));
+    }
+
+    protected void checkAccess() {
+        if (run == null) {
+            Jenkins.get().checkPermission(Jenkins.READ);
+            return;
+        }
         if (Functions.isArtifactsPermissionEnabled()) {
             run.checkPermission(Run.ARTIFACTS);
         } else {
@@ -97,7 +148,7 @@ public class ArtifactExplorerAction implements Action {
         checkAccess();
         ArtifactTree.Listing<ArtifactTree.Entry> listing;
         try {
-            listing = ArtifactTree.children(run, path, getMaxEntries());
+            listing = ArtifactTree.children(root(), path, getMaxEntries());
         } catch (IllegalArgumentException e) {
             return HttpResponses.errorJSON("Invalid path");
         }
@@ -124,20 +175,20 @@ public class ArtifactExplorerAction implements Action {
     @GET
     public HttpResponse doSearchIndex() throws IOException {
         checkAccess();
-        ArtifactTree.Listing<String> listing = ArtifactTree.allFiles(run, getMaxEntries());
+        ArtifactTree.Listing<String> listing = ArtifactTree.allFiles(root(), getMaxEntries());
         JSONObject data = new JSONObject();
         data.put("files", JSONArray.fromObject(listing.items()));
         data.put("truncated", listing.truncated());
         return HttpResponses.okJSON(data);
     }
 
-    /** {@code GET preview?path=a/b.txt}: metadata and bounded UTF-8 text preview for a single file. */
+    /** {@code GET preview?path=a/b.txt}: metadata, bounded UTF-8 text preview, and optional CommonMark HTML. */
     @GET
     public HttpResponse doPreview(@QueryParameter String path) throws IOException {
         checkAccess();
         ArtifactTree.FilePreview preview;
         try {
-            preview = ArtifactTree.preview(run, path, MAX_PREVIEW_BYTES);
+            preview = ArtifactTree.preview(root(), path, MAX_PREVIEW_BYTES);
         } catch (IllegalArgumentException e) {
             return HttpResponses.errorJSON("Invalid path");
         }
@@ -154,6 +205,9 @@ public class ArtifactExplorerAction implements Action {
         if (preview.text() != null) {
             data.put("text", preview.text());
         }
+        if (preview.renderedHtml() != null) {
+            data.put("renderedHtml", preview.renderedHtml());
+        }
         return HttpResponses.okJSON(data);
     }
 
@@ -163,7 +217,7 @@ public class ArtifactExplorerAction implements Action {
         checkAccess();
         String hash;
         try {
-            hash = ArtifactTree.sha256(run, path, MAX_SHA256_BYTES);
+            hash = ArtifactTree.sha256(root(), path, MAX_SHA256_BYTES);
         } catch (IllegalArgumentException e) {
             return HttpResponses.errorJSON("Invalid path");
         } catch (ArtifactTree.TooLargeException e) {
@@ -175,5 +229,31 @@ public class ArtifactExplorerAction implements Action {
         JSONObject data = new JSONObject();
         data.put("sha256", hash);
         return HttpResponses.okJSON(data);
+    }
+
+    /**
+     * Root action backing the {@code <jenkinsurl>/userContent/} directory browser replacement.
+     */
+    @Extension
+    public static final class UserContentExplorerAction extends ArtifactExplorerAction implements RootAction {
+
+        public UserContentExplorerAction() {
+            super(null);
+        }
+
+        @Override
+        public String getIconFileName() {
+            return null;
+        }
+
+        @Override
+        public String getDisplayName() {
+            return Messages.UserContentExplorerAction_DisplayName();
+        }
+
+        @Override
+        public String getUrlName() {
+            return "userContent-explorer";
+        }
     }
 }

@@ -39,7 +39,9 @@ class ArtifactTreeSanitizeTest {
         var p = ArtifactExplorerFilter.DIRECTORY_REQUEST;
         assertEquals(true, p.matcher("/job/x/46/artifact/dist/").matches());
         assertEquals(true, p.matcher("/job/x/46/artifact/").matches());
-        assertEquals(true, p.matcher("/job/f/job/x/lastSuccessfulBuild/artifact/a/b/").matches());
+        assertEquals(
+                true,
+                p.matcher("/job/f/job/x/lastSuccessfulBuild/artifact/a/b/").matches());
         assertEquals(true, p.matcher("/view/all/job/x/3/artifact/").matches());
         assertEquals(true, p.matcher("/job/artifact/5/artifact/dist/").matches());
         // files, special tokens and non-build URLs are left to core
