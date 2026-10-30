@@ -176,17 +176,10 @@
   width: 0.9rem;
   height: 0.9rem;
   flex-shrink: 0;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .ae-sum-icon--folder {
   color: var(--ae-folder);
-  fill: currentColor;
-  fill-opacity: 0.2;
 }
 
 .ae-sum-icon--file {
@@ -285,7 +278,7 @@
   --ae-hover: var(--item-background--hover, rgba(127, 127, 127, 0.12));
   --ae-muted: var(--text-color-secondary, #6b7280);
 
-  max-width: 52rem;
+  width: 100%;
   margin: 1.25rem 0 2rem 0;
   display: flex;
   flex-direction: column;
@@ -316,7 +309,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--orange, #e8a317);
+  color: var(--text-color, inherit);
   flex-shrink: 0;
 }
 
@@ -397,7 +390,7 @@
 .ae-fp-btn svg {
   width: 0.9rem;
   height: 0.9rem;
-  fill: currentColor;
+  stroke: currentColor;
 }
 
 .ae-fp-meta-details {
@@ -491,8 +484,16 @@
 .ae-fp-builds-wrap {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.45rem;
   flex-wrap: wrap;
+}
+
+.ae-fp-range-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ae-fp-range-sep {

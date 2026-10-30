@@ -37,6 +37,19 @@ public class ArtifactExplorerFilter implements HttpServletFilter {
      */
     static final Pattern USER_CONTENT_DIRECTORY_REQUEST = Pattern.compile("^/userContent/((?:[^/*]+/)*)$");
 
+    /**
+     * Job or build overview pages where classic "Last Successful Artifacts" or "Build Artifacts" summary lists are
+     * rendered.
+     */
+    static final Pattern SUMMARY_PAGE_REQUEST =
+            Pattern.compile("^(?:/(?:view|job)/[^/]+)+(?:|/(?:\\d+|last[A-Za-z]*Build))/?$");
+
+    /**
+     * Fingerprint pages ({@code /fingerprint/<md5>/} or {@code .../*fingerprint*\/}).
+     */
+    static final Pattern FINGERPRINT_PAGE_REQUEST =
+            Pattern.compile("^(?:/fingerprint/[a-fA-F0-9]+|/.+/\\*fingerprint\\*)/?$");
+
     @Override
     public boolean handle(HttpServletRequest req, HttpServletResponse rsp) throws IOException, ServletException {
         if (!isBrowserGet(req) || "1".equals(req.getParameter("legacy"))) {
@@ -66,6 +79,11 @@ public class ArtifactExplorerFilter implements HttpServletFilter {
             }
             dispatcher.forward(req, rsp);
             return true;
+        }
+        if (FINGERPRINT_PAGE_REQUEST.matcher(path).matches()) {
+            req.setAttribute(ArtifactSummaryDecorator.PAGE_KIND_ATTRIBUTE, ArtifactSummaryDecorator.KIND_FINGERPRINT);
+        } else if (SUMMARY_PAGE_REQUEST.matcher(path).matches()) {
+            req.setAttribute(ArtifactSummaryDecorator.PAGE_KIND_ATTRIBUTE, ArtifactSummaryDecorator.KIND_SUMMARY);
         }
         return false;
     }

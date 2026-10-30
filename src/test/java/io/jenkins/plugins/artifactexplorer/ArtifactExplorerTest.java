@@ -506,4 +506,46 @@ class ArtifactExplorerTest {
         assertEquals(null, legacy.getElementById("artifact-explorer"));
         assertTrue(legacy.asXml().contains("fileList"));
     }
+
+    @Test
+    void summaryDecoratorIsLimitedToPagesWhereNeeded(JenkinsRule j) throws Exception {
+        projectWithArtifacts(j, "p");
+        FreeStyleProject empty = j.createFreeStyleProject("empty");
+        j.buildAndAssertSuccess(empty);
+
+        JenkinsRule.WebClient wc = client(j);
+
+        // 1. Build overview with artifacts has decorator assets
+        HtmlPage buildWithArtifacts = wc.goTo("job/p/1/");
+        assertTrue(buildWithArtifacts.asXml().contains("summary-tree.js"));
+        assertTrue(buildWithArtifacts.asXml().contains("summary-tree.css"));
+
+        // 2. Job overview with artifacts has decorator assets
+        HtmlPage jobWithArtifacts = wc.goTo("job/p/");
+        assertTrue(jobWithArtifacts.asXml().contains("summary-tree.js"));
+
+        // 3. Fingerprint page has decorator assets
+        HtmlPage fpPage = wc.goTo("job/p/1/artifact/dist/a.txt/*fingerprint*/");
+        assertTrue(fpPage.asXml().contains("summary-tree.js"));
+
+        // 4. Build WITHOUT artifacts does NOT load decorator assets
+        HtmlPage emptyBuild = wc.goTo("job/empty/1/");
+        assertFalse(emptyBuild.asXml().contains("summary-tree.js"));
+        assertFalse(emptyBuild.asXml().contains("summary-tree.css"));
+
+        // 5. Job WITHOUT artifacts does NOT load decorator assets
+        HtmlPage emptyJob = wc.goTo("job/empty/");
+        assertFalse(emptyJob.asXml().contains("summary-tree.js"));
+
+        // 6. Subpages (e.g. console, configure) do NOT load decorator assets
+        HtmlPage consolePage = wc.goTo("job/p/1/console");
+        assertFalse(consolePage.asXml().contains("summary-tree.js"));
+
+        HtmlPage configPage = wc.goTo("job/p/configure");
+        assertFalse(configPage.asXml().contains("summary-tree.js"));
+
+        // 7. Admin / manage pages do NOT load decorator assets
+        HtmlPage managePage = wc.goTo("manage");
+        assertFalse(managePage.asXml().contains("summary-tree.js"));
+    }
 }

@@ -5,6 +5,27 @@
 (function () {
   'use strict';
 
+  const SVGS = {
+    folder:
+      '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path d="M440 432H72a40 40 0 01-40-40V120a40 40 0 0140-40h75.89a40 40 0 0122.19 6.72l27.84 18.56a40 40 0 0022.19 6.72H440a40 40 0 0140 40v240a40 40 0 01-40 40zM32 192h448" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>',
+    file:
+      '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path d="M416 221.25V416a48 48 0 01-48 48H144a48 48 0 01-48-48V96a48 48 0 0148-48h98.75a32 32 0 0122.62 9.37l141.26 141.26a32 32 0 019.37 22.62z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="32"/><path d="M256 56v120a32 32 0 0032 32h120M176 288h160M176 368h160" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>',
+    caret:
+      '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="48" d="M184 112l144 144-144 144"/></svg>',
+    tree:
+      '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M160 128h288M160 256h288M160 384h288M64 128h32M96 128v128h32M96 256v128h32"/></svg>',
+    flat:
+      '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M160 144h288M160 256h288M160 368h288"/><circle cx="80" cy="144" r="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><circle cx="80" cy="256" r="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/><circle cx="80" cy="368" r="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>',
+    external:
+      '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path d="M384 224v184a40 40 0 01-40 40H104a40 40 0 01-40-40V168a40 40 0 0140-40h167.48M336 64h112v112M224 288L440 72" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>',
+    fingerprint:
+      '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path d="M390.42 75.28a10.45 10.45 0 01-5.32-1.44C340.72 50.08 302.35 40 256.35 40c-45.77 0-89.23 11.28-128.76 33.84C122 77 115.11 74.8 111.87 69a12.4 12.4 0 014.63-16.32A281.81 281.81 0 01256.35 16c49.23 0 92.23 11.28 139.39 36.48a12 12 0 014.85 16.08 11.3 11.3 0 01-10.17 6.72zm-330.79 126a11.73 11.73 0 01-6.7-2.16 12.26 12.26 0 01-2.78-16.8c22.89-33.6 52-60 86.69-78.48 72.58-38.84 165.51-39.12 238.32-.24 34.68 18.48 63.8 44.64 86.69 78a12.29 12.29 0 01-2.78 16.8 11.26 11.26 0 01-16.18-2.88c-20.8-30.24-47.15-54-78.36-70.56-66.34-35.28-151.18-35.28-217.29.24-31.44 16.8-57.79 40.8-78.59 71a10 10 0 01-9.02 5.08zM204.1 491a10.66 10.66 0 01-8.09-3.6C175.9 466.48 165 453 149.55 424c-16-29.52-24.27-65.52-24.27-104.16 0-71.28 58.71-129.36 130.84-129.36S387 248.56 387 319.84a11.56 11.56 0 11-23.11 0c0-58.08-48.32-105.36-107.72-105.36S148.4 261.76 148.4 319.84c0 34.56 7.39 66.48 21.49 92.4 14.8 27.6 25 39.36 42.77 58.08a12.67 12.67 0 010 17 12.44 12.44 0 01-8.56 3.68zm165.75-44.4c-27.51 0-51.78-7.2-71.66-21.36a129.1 129.1 0 01-55-105.36 11.57 11.57 0 1123.12 0 104.28 104.28 0 0044.84 85.44c16.41 11.52 35.6 17 58.72 17a147.41 147.41 0 0024-2.4c6.24-1.2 12.25 3.12 13.4 9.84a11.92 11.92 0 01-9.47 13.92 152.28 152.28 0 01-27.95 2.88zM323.38 496a13 13 0 01-3-.48c-36.76-10.56-60.8-24.72-86-50.4-32.37-33.36-50.16-77.76-50.16-125.28 0-38.88 31.9-70.56 71.19-70.56s71.2 31.68 71.2 70.56c0 25.68 21.5 46.56 48.08 46.56s48.08-20.88 48.08-46.56c0-90.48-75.13-163.92-167.59-163.92-65.65 0-125.75 37.92-152.79 96.72-9 19.44-13.64 42.24-13.64 67.2 0 18.72 1.61 48.24 15.48 86.64 2.32 6.24-.69 13.2-6.7 15.36a11.34 11.34 0 01-14.79-7 276.39 276.39 0 01-16.88-95c0-28.8 5.32-55 15.72-77.76 30.75-67 98.94-110.4 173.6-110.4 105.18 0 190.71 84.24 190.71 187.92 0 38.88-31.9 70.56-71.2 70.56s-71.2-31.68-71.2-70.56c.01-25.68-21.49-46.6-48.07-46.6s-48.08 20.88-48.08 46.56c0 41 15.26 79.44 43.23 108.24 22 22.56 43 35 75.59 44.4 6.24 1.68 9.71 8.4 8.09 14.64a11.39 11.39 0 01-10.87 9.16z" fill="currentColor"/></svg>',
+    copy:
+      '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><rect x="128" y="128" width="336" height="336" rx="57" ry="57" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="32"/><path d="M383.5 128l.5-24a56.16 56.16 0 00-56-56H112a64.19 64.19 0 00-64 64v216a56.16 56.16 0 0056 56h24M296 216v160M376 296H216" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32"/></svg>',
+    check:
+      '<svg xmlns="http://www.w3.org/2000/svg" class="ionicon" viewBox="0 0 512 512"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M416 128L192 384l-96-96"/></svg>',
+  };
+
   function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -23,31 +44,12 @@
   }
 
   function svgIcon(kind) {
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    // The "external" glyph is the ionicons "open" icon (512 unit grid), same as Jenkins' own external.svg
-    svg.setAttribute('viewBox', kind === 'external' ? '0 0 512 512' : '0 0 16 16');
+    const raw = SVGS[kind] || SVGS.file;
+    const t = document.createElement('template');
+    t.innerHTML = raw.trim();
+    const svg = t.content.firstElementChild;
     svg.setAttribute('class', 'ae-sum-icon ae-sum-icon--' + kind);
     svg.setAttribute('aria-hidden', 'true');
-    const path = document.createElementNS(ns, 'path');
-    const shapes = {
-      folder: 'M1.5 3A1.5 1.5 0 0 1 3 1.5h3l1.5 1.5H13A1.5 1.5 0 0 1 14.5 4.5v8A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5z',
-      file: 'M3.5 1.5h6l3 3v10h-9zM9 1.5v3.5h3.5',
-      caret: 'M6 3.5l4.5 4.5L6 12.5',
-      tree: 'M2 3.5h3v3H2zM7 9.5h3v3H7zM7 3.5h3v3H7zM3.5 6.5v4.5H7M5 5h2',
-      flat: 'M2.5 4h11M2.5 8h11M2.5 12h11',
-      external: 'M384 224v184a40 40 0 01-40 40H104a40 40 0 01-40-40V168a40 40 0 0140-40h167.48M336 64h112v112M224 288L440 72',
-      search: 'M7 2.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zM10.5 10.5L14 14',
-      fingerprint: 'M8 1.5a6.5 6.5 0 0 0-6.5 6.5c0 2.2.8 4.2 2.1 5.6M8 4a4 4 0 0 1 4 4c0 1.8-.5 3.6-1.4 5M8 6.5a1.5 1.5 0 0 1 1.5 1.5c0 1.5-.4 3-1.2 4.2M5.5 12.5c-.6-1.2-1-2.8-1-4.5a3.5 3.5 0 0 1 3.5-3.5',
-      copy: 'M5.5 2.5h7A1.5 1.5 0 0 1 14 4v7a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 4 11V4a1.5 1.5 0 0 1 1.5-1.5zM2.5 5.5v7A1.5 1.5 0 0 0 4 14h7',
-      check: 'M3 8.5l3.5 3.5 6.5-7',
-      package: 'M8 1.5l6 3.2v6.6L8 14.5 2 11.3V4.7L8 1.5zM2 4.7l6 3.3 6-3.3M8 8v6.5'
-    };
-    path.setAttribute('d', shapes[kind] || shapes.file);
-    if (kind === 'external') {
-      path.setAttribute('stroke-width', '32');
-    }
-    svg.appendChild(path);
     return svg;
   }
 
@@ -121,248 +123,309 @@
       const firstLink = table.querySelector('a[href*="/artifact/"]');
       if (!firstLink) return;
 
-    table.dataset.aeEnhanced = 'true';
+      table.dataset.aeEnhanced = 'true';
 
-    // Determine artifact root URL from the first artifact link
-    const rawHref = firstLink.getAttribute('href') || '';
-    const artIdx = rawHref.indexOf('/artifact/');
-    const artifactRootUrl = artIdx >= 0 ? rawHref.substring(0, artIdx + '/artifact/'.length) : 'artifact/';
+      // Determine artifact root URL from the first artifact link
+      const rawHref = firstLink.getAttribute('href') || '';
+      const artIdx = rawHref.indexOf('/artifact/');
+      const artifactRootUrl = artIdx >= 0 ? rawHref.substring(0, artIdx + '/artifact/'.length) : 'artifact/';
 
-    const encodePath = (p) => p.split('/').map(encodeURIComponent).join('/');
+      const encodePath = (p) => p.split('/').map(encodeURIComponent).join('/');
 
-    // Parse all rows from classic table.fileList
-    const rootNode = { name: '', path: '', children: new Map(), files: [] };
-    const allFiles = [];
+      // Parse all rows from classic table.fileList
+      const rootNode = { name: '', path: '', children: new Map(), files: [] };
+      const allFiles = [];
 
-    fileRows.forEach((tr) => {
-      const cells = tr.querySelectorAll('td');
-      if (cells.length < 2) return;
+      fileRows.forEach((tr) => {
+        const cells = tr.querySelectorAll('td');
+        if (cells.length < 2) return;
 
-      const mainLink = cells[1].querySelector('a[href*="/artifact/"]:not([href*="/*view*/"]):not([href*="/*fingerprint*/"])');
-      if (!mainLink) return;
+        const mainLink = cells[1].querySelector('a[href*="/artifact/"]:not([href*="/*view*/"]):not([href*="/*fingerprint*/"])');
+        if (!mainLink) return;
 
-      const href = mainLink.getAttribute('href') || '';
-      const idx = href.indexOf('/artifact/');
-      if (idx < 0) return;
+        const href = mainLink.getAttribute('href') || '';
+        const idx = href.indexOf('/artifact/');
+        if (idx < 0) return;
 
-      const relEncoded = href.substring(idx + '/artifact/'.length);
-      if (!relEncoded || relEncoded.includes('/*')) return;
+        const relEncoded = href.substring(idx + '/artifact/'.length);
+        if (!relEncoded || relEncoded.includes('/*')) return;
 
-      const segments = relEncoded.split('/').map((s) => {
-        try {
-          return decodeURIComponent(s);
-        } catch (e) {
-          return s;
-        }
-      });
-
-      const viewLink = cells[1].querySelector('a[href*="/*view*/"]');
-      const viewHref = viewLink ? viewLink.getAttribute('href') : (href + '/*view*/');
-
-      const sizeCell = tr.querySelector('td.fileSize');
-      const sizeText = sizeCell ? sizeCell.textContent.trim() : '';
-
-      let fpHref = null;
-      for (let i = 2; i < cells.length; i++) {
-        const fpLink = cells[i].querySelector('a[href*="/*fingerprint*/"], a[href*="/fingerprint/"]');
-        if (fpLink) {
-          fpHref = fpLink.getAttribute('href');
-          break;
-        }
-      }
-
-      // Insert into hierarchical tree
-      let curr = rootNode;
-      let accPath = '';
-      for (let i = 0; i < segments.length - 1; i++) {
-        const seg = segments[i];
-        accPath = accPath ? accPath + '/' + seg : seg;
-        if (!curr.children.has(seg)) {
-          curr.children.set(seg, {
-            name: seg,
-            path: accPath,
-            children: new Map(),
-            files: []
-          });
-        }
-        curr = curr.children.get(seg);
-      }
-
-      const fileName = segments[segments.length - 1];
-      const decodedRelPath = segments.join('/');
-      const fileObj = {
-        name: fileName,
-        path: decodedRelPath,
-        href: href,
-        size: sizeText,
-        viewHref: viewHref,
-        fpHref: fpHref
-      };
-      curr.files.push(fileObj);
-      allFiles.push(fileObj);
-    });
-
-    // Create enhancement UI container
-    const wrapper = el('div', 'ae-sum-wrapper');
-    const toolbar = el('div', 'ae-sum-toolbar');
-
-    // View toggle buttons (Tree vs Flat)
-    const toggleGroup = el('div', 'ae-sum-btn-group');
-    const treeBtn = el('button', 'ae-sum-toggle ae-sum-toggle--active', ' Tree');
-    treeBtn.type = 'button';
-    treeBtn.prepend(svgIcon('tree'));
-    const flatBtn = el('button', 'ae-sum-toggle', ' Flat');
-    flatBtn.type = 'button';
-    flatBtn.prepend(svgIcon('flat'));
-    toggleGroup.append(treeBtn, flatBtn);
-
-    // Search filter
-    const searchWrap = el('div', 'ae-sum-search-wrap');
-    const searchInput = el('input', 'ae-sum-search');
-    searchInput.type = 'search';
-    searchInput.placeholder = 'Filter artifacts...';
-    searchWrap.appendChild(searchInput);
-
-    // Link to full explorer
-    const explorerLink = el('a', 'ae-sum-link', 'Full Explorer ');
-    explorerLink.href = artifactRootUrl;
-    explorerLink.setAttribute('tooltip', 'Open in full Artifact Explorer');
-    explorerLink.appendChild(svgIcon('external'));
-
-    toolbar.append(toggleGroup, searchWrap, explorerLink);
-
-    // Extension filter pills bar
-    const sumPillsBar = el('div', 'ae-sum-pills');
-    let activeSummaryExt = null;
-
-    function setSummaryExt(ext) {
-      activeSummaryExt = ext;
-      sumPillsBar.querySelectorAll('.ae-sum-pill').forEach((p) => {
-        const isTarget = ext === null ? !p.dataset.ext : p.dataset.ext === ext;
-        p.classList.toggle('jenkins-button--primary', isTarget);
-      });
-      applyFilter();
-    }
-
-    const extCounts = new Map();
-    allFiles.forEach((f) => {
-      const ext = getExtension(f.path);
-      if (ext) {
-        extCounts.set(ext, (extCounts.get(ext) || 0) + 1);
-      }
-    });
-
-    if (extCounts.size > 1) {
-      const sortedExts = Array.from(extCounts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-      const allPill = el('button', 'jenkins-button jenkins-button--primary ae-sum-pill');
-      allPill.type = 'button';
-      allPill.append(el('span', '', 'All'), el('span', 'ae-sum-pill-count', String(allFiles.length)));
-      allPill.addEventListener('click', () => setSummaryExt(null));
-      sumPillsBar.appendChild(allPill);
-
-      sortedExts.slice(0, 10).forEach(([ext, count]) => {
-        const pill = el('button', 'jenkins-button ae-sum-pill');
-        pill.type = 'button';
-        pill.dataset.ext = ext;
-        pill.append(el('span', '', ext), el('span', 'ae-sum-pill-count', String(count)));
-        pill.addEventListener('click', () => {
-          if (activeSummaryExt === ext) {
-            setSummaryExt(null);
-          } else {
-            setSummaryExt(ext);
+        const segments = relEncoded.split('/').map((s) => {
+          try {
+            return decodeURIComponent(s);
+          } catch (e) {
+            return s;
           }
         });
-        sumPillsBar.appendChild(pill);
+
+        const viewLink = cells[1].querySelector('a[href*="/*view*/"]');
+        const viewHref = viewLink ? viewLink.getAttribute('href') : (href + '/*view*/');
+
+        const sizeCell = tr.querySelector('td.fileSize');
+        const sizeText = sizeCell ? sizeCell.textContent.trim() : '';
+
+        let fpHref = null;
+        for (let i = 2; i < cells.length; i++) {
+          const fpLink = cells[i].querySelector('a[href*="/*fingerprint*/"], a[href*="/fingerprint/"]');
+          if (fpLink) {
+            fpHref = fpLink.getAttribute('href');
+            break;
+          }
+        }
+
+        // Insert into hierarchical tree
+        let curr = rootNode;
+        let accPath = '';
+        for (let i = 0; i < segments.length - 1; i++) {
+          const seg = segments[i];
+          accPath = accPath ? accPath + '/' + seg : seg;
+          if (!curr.children.has(seg)) {
+            curr.children.set(seg, {
+              name: seg,
+              path: accPath,
+              children: new Map(),
+              files: []
+            });
+          }
+          curr = curr.children.get(seg);
+        }
+
+        const fileName = segments[segments.length - 1];
+        const decodedRelPath = segments.join('/');
+        const fileObj = {
+          name: fileName,
+          path: decodedRelPath,
+          href: href,
+          size: sizeText,
+          viewHref: viewHref,
+          fpHref: fpHref
+        };
+        curr.files.push(fileObj);
+        allFiles.push(fileObj);
       });
-    } else {
-      sumPillsBar.hidden = true;
-    }
 
-    // Containers for Tree and Flat views
-    const treeRootEl = el('div', 'ae-sum-tree');
-    const flatRootEl = el('div', 'ae-sum-flat');
-    flatRootEl.hidden = true;
-    wrapper.append(toolbar, sumPillsBar, treeRootEl, flatRootEl);
+      // Create enhancement UI container
+      const wrapper = el('div', 'ae-sum-wrapper');
+      const toolbar = el('div', 'ae-sum-toolbar');
 
-    // Render tree function
-    function renderTree(filterQuery) {
-      treeRootEl.replaceChildren();
-      const q = (filterQuery || '').trim().toLowerCase();
+      // View toggle buttons (Tree vs Flat)
+      const toggleGroup = el('div', 'ae-sum-btn-group');
+      const treeBtn = el('button', 'ae-sum-toggle ae-sum-toggle--active', ' Tree');
+      treeBtn.type = 'button';
+      treeBtn.prepend(svgIcon('tree'));
+      const flatBtn = el('button', 'ae-sum-toggle', ' Flat');
+      flatBtn.type = 'button';
+      flatBtn.prepend(svgIcon('flat'));
+      toggleGroup.append(treeBtn, flatBtn);
 
-      function buildDirUl(dirNode, depth) {
-        const ul = el('ul', 'ae-sum-list');
-        if (depth > 0) ul.classList.add('ae-sum-list--nested');
+      // Search filter
+      const searchWrap = el('div', 'ae-sum-search-wrap');
+      const searchInput = el('input', 'ae-sum-search');
+      searchInput.type = 'search';
+      searchInput.placeholder = 'Filter artifacts...';
+      searchWrap.appendChild(searchInput);
 
-        // Render subdirectories
-        const sortedDirs = Array.from(dirNode.children.values()).sort((a, b) => a.name.localeCompare(b.name));
-        sortedDirs.forEach((subDir) => {
-          const matchingCount = countMatches(subDir, q);
-          if (q && matchingCount === 0) return;
+      // Link to full explorer
+      const explorerLink = el('a', 'ae-sum-link', 'Full Explorer ');
+      explorerLink.href = artifactRootUrl;
+      explorerLink.setAttribute('tooltip', 'Open in full Artifact Explorer');
+      explorerLink.appendChild(svgIcon('external'));
 
-          const li = el('li', 'ae-sum-node ae-sum-node--dir');
-          li.style.setProperty('--depth', depth);
+      toolbar.append(toggleGroup, searchWrap, explorerLink);
 
-          const row = el('div', 'ae-sum-row ae-sum-row--dir');
-          const toggle = el('button', 'ae-sum-caret');
-          toggle.type = 'button';
-          toggle.appendChild(svgIcon('caret'));
+      // Extension filter pills bar
+      const sumPillsBar = el('div', 'ae-sum-pills');
+      let activeSummaryExt = null;
 
-          const folderIcon = svgIcon('folder');
-          const nameSpan = el('span', 'ae-sum-name ae-sum-name--dir');
-          nameSpan.appendChild(highlight(subDir.name, q));
+      function setSummaryExt(ext) {
+        activeSummaryExt = ext;
+        sumPillsBar.querySelectorAll('.ae-sum-pill').forEach((p) => {
+          const isTarget = ext === null ? !p.dataset.ext : p.dataset.ext === ext;
+          p.classList.toggle('jenkins-button--primary', isTarget);
+        });
+        applyFilter();
+      }
 
-          const countBadge = el('span', 'ae-sum-badge', subDir.files.length + subDir.children.size + ' items');
+      const extCounts = new Map();
+      allFiles.forEach((f) => {
+        const ext = getExtension(f.path);
+        if (ext) {
+          extCounts.set(ext, (extCounts.get(ext) || 0) + 1);
+        }
+      });
 
-          const actions = el('span', 'ae-sum-actions');
-          const zipLink = el('a', 'ae-sum-act-link', 'zip');
-          zipLink.href = artifactRootUrl + encodePath(subDir.path) + '/*zip*/' + encodeURIComponent(subDir.name) + '.zip';
-          zipLink.setAttribute('tooltip', 'Download ' + subDir.name + ' as .zip');
-          zipLink.setAttribute('aria-label', 'Download ' + subDir.name + ' as .zip');
-          zipLink.addEventListener('click', (e) => e.stopPropagation());
-          actions.appendChild(zipLink);
+      if (extCounts.size > 1) {
+        const sortedExts = Array.from(extCounts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+        const allPill = el('button', 'jenkins-button jenkins-button--primary ae-sum-pill');
+        allPill.type = 'button';
+        allPill.append(el('span', '', 'All'), el('span', 'ae-sum-pill-count', String(allFiles.length)));
+        allPill.addEventListener('click', () => setSummaryExt(null));
+        sumPillsBar.appendChild(allPill);
 
-          row.append(toggle, folderIcon, nameSpan, countBadge, actions);
-          li.appendChild(row);
+        sortedExts.slice(0, 10).forEach(([ext, count]) => {
+          const pill = el('button', 'jenkins-button ae-sum-pill');
+          pill.type = 'button';
+          pill.dataset.ext = ext;
+          pill.append(el('span', '', ext), el('span', 'ae-sum-pill-count', String(count)));
+          pill.addEventListener('click', () => {
+            if (activeSummaryExt === ext) {
+              setSummaryExt(null);
+            } else {
+              setSummaryExt(ext);
+            }
+          });
+          sumPillsBar.appendChild(pill);
+        });
+      } else {
+        sumPillsBar.hidden = true;
+      }
 
-          const childUl = buildDirUl(subDir, depth + 1);
-          li.appendChild(childUl);
+      // Containers for Tree and Flat views
+      const treeRootEl = el('div', 'ae-sum-tree');
+      const flatRootEl = el('div', 'ae-sum-flat');
+      flatRootEl.hidden = true;
+      wrapper.append(toolbar, sumPillsBar, treeRootEl, flatRootEl);
 
-          // Folders open by default if depth < 2 or if searching
-          let isOpen = depth < 2 || (q.length > 0 && matchingCount > 0);
-          li.classList.toggle('ae-sum-node--open', isOpen);
-          childUl.hidden = !isOpen;
+      // Render tree function
+      function renderTree(filterQuery) {
+        treeRootEl.replaceChildren();
+        const q = (filterQuery || '').trim().toLowerCase();
 
-          function toggleDir() {
-            isOpen = !isOpen;
+        function buildDirUl(dirNode, depth) {
+          const ul = el('ul', 'ae-sum-list');
+          if (depth > 0) ul.classList.add('ae-sum-list--nested');
+
+          // Render subdirectories
+          const sortedDirs = Array.from(dirNode.children.values()).sort((a, b) => a.name.localeCompare(b.name));
+          sortedDirs.forEach((subDir) => {
+            const matchingCount = countMatches(subDir, q);
+            if (q && matchingCount === 0) return;
+
+            const li = el('li', 'ae-sum-node ae-sum-node--dir');
+            li.style.setProperty('--depth', depth);
+
+            const row = el('div', 'ae-sum-row ae-sum-row--dir');
+            const toggle = el('button', 'ae-sum-caret');
+            toggle.type = 'button';
+            toggle.appendChild(svgIcon('caret'));
+
+            const folderIcon = svgIcon('folder');
+            const nameSpan = el('span', 'ae-sum-name ae-sum-name--dir');
+            nameSpan.appendChild(highlight(subDir.name, q));
+
+            const countBadge = el('span', 'ae-sum-badge', subDir.files.length + subDir.children.size + ' items');
+
+            const actions = el('span', 'ae-sum-actions');
+            const zipLink = el('a', 'ae-sum-act-link', 'zip');
+            zipLink.href = artifactRootUrl + encodePath(subDir.path) + '/*zip*/' + encodeURIComponent(subDir.name) + '.zip';
+            zipLink.setAttribute('tooltip', 'Download ' + subDir.name + ' as .zip');
+            zipLink.setAttribute('aria-label', 'Download ' + subDir.name + ' as .zip');
+            zipLink.addEventListener('click', (e) => e.stopPropagation());
+            actions.appendChild(zipLink);
+
+            row.append(toggle, folderIcon, nameSpan, countBadge, actions);
+            li.appendChild(row);
+
+            const childUl = buildDirUl(subDir, depth + 1);
+            li.appendChild(childUl);
+
+            // Folders open by default if depth < 2 or if searching
+            let isOpen = depth < 2 || (q.length > 0 && matchingCount > 0);
             li.classList.toggle('ae-sum-node--open', isOpen);
             childUl.hidden = !isOpen;
-          }
 
-          toggle.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleDir();
+            function toggleDir() {
+              isOpen = !isOpen;
+              li.classList.toggle('ae-sum-node--open', isOpen);
+              childUl.hidden = !isOpen;
+            }
+
+            toggle.addEventListener('click', (e) => {
+              e.stopPropagation();
+              toggleDir();
+            });
+            row.addEventListener('click', toggleDir);
+
+            ul.appendChild(li);
           });
-          row.addEventListener('click', toggleDir);
 
-          ul.appendChild(li);
-        });
+          // Render files
+          const sortedFiles = dirNode.files.slice().sort((a, b) => a.name.localeCompare(b.name));
+          sortedFiles.forEach((file) => {
+            if (q && !file.path.toLowerCase().includes(q)) return;
+            if (activeSummaryExt && getExtension(file.path) !== activeSummaryExt) return;
 
-        // Render files
-        const sortedFiles = dirNode.files.slice().sort((a, b) => a.name.localeCompare(b.name));
-        sortedFiles.forEach((file) => {
-          if (q && !file.path.toLowerCase().includes(q)) return;
-          if (activeSummaryExt && getExtension(file.path) !== activeSummaryExt) return;
+            const li = el('li', 'ae-sum-node ae-sum-node--file');
+            li.style.setProperty('--depth', depth);
 
+            const row = el('div', 'ae-sum-row ae-sum-row--file');
+            const spacer = el('span', 'ae-sum-caret ae-sum-caret--spacer');
+            const fileIcon = svgIcon('file');
+
+            const link = el('a', 'ae-sum-name ae-sum-name--file');
+            link.href = file.href;
+            link.appendChild(highlight(file.name, q));
+
+            const size = el('span', 'ae-sum-size', file.size);
+
+            const actions = el('span', 'ae-sum-actions');
+            if (file.viewHref) {
+              const vLink = el('a', 'ae-sum-act-link', 'view');
+              vLink.href = file.viewHref;
+              actions.appendChild(vLink);
+            }
+            if (file.fpHref) {
+              const fpLink = el('a', 'ae-sum-act-link', 'fingerprint');
+              fpLink.href = file.fpHref;
+              actions.appendChild(fpLink);
+            }
+
+            row.append(spacer, fileIcon, link, size, actions);
+            li.appendChild(row);
+            ul.appendChild(li);
+          });
+
+          return ul;
+        }
+
+        function countMatches(dirNode, query) {
+          let count = dirNode.files.filter((f) => (!query || f.path.toLowerCase().includes(query)) && (!activeSummaryExt || getExtension(f.path) === activeSummaryExt)).length;
+          dirNode.children.forEach((c) => {
+            count += countMatches(c, query);
+          });
+          return count;
+        }
+
+        const treeDom = buildDirUl(rootNode, 0);
+        if (treeDom.children.length === 0) {
+          treeRootEl.appendChild(el('div', 'ae-sum-empty', 'No matching artifacts found.'));
+        } else {
+          treeRootEl.appendChild(treeDom);
+          applyJenkinsBehaviour(treeRootEl);
+        }
+      }
+
+      // Render modern consistent flat view function
+      function renderFlat(filterQuery) {
+        flatRootEl.replaceChildren();
+        const q = (filterQuery || '').trim().toLowerCase();
+        const sorted = allFiles.slice().sort((a, b) => a.path.localeCompare(b.path));
+        const matches = sorted.filter((f) => (!q || f.path.toLowerCase().includes(q)) && (!activeSummaryExt || getExtension(f.path) === activeSummaryExt));
+
+        if (matches.length === 0) {
+          flatRootEl.appendChild(el('div', 'ae-sum-empty', 'No matching artifacts found.'));
+          return;
+        }
+
+        const ul = el('ul', 'ae-sum-list');
+        matches.forEach((file) => {
           const li = el('li', 'ae-sum-node ae-sum-node--file');
-          li.style.setProperty('--depth', depth);
-
-          const row = el('div', 'ae-sum-row ae-sum-row--file');
-          const spacer = el('span', 'ae-sum-caret ae-sum-caret--spacer');
+          const row = el('div', 'ae-sum-row ae-sum-row--file ae-sum-row--flat');
           const fileIcon = svgIcon('file');
 
           const link = el('a', 'ae-sum-name ae-sum-name--file');
           link.href = file.href;
-          link.appendChild(highlight(file.name, q));
+          link.appendChild(highlight(file.path, q));
 
           const size = el('span', 'ae-sum-size', file.size);
 
@@ -378,121 +441,60 @@
             actions.appendChild(fpLink);
           }
 
-          row.append(spacer, fileIcon, link, size, actions);
+          row.append(fileIcon, link, size, actions);
           li.appendChild(row);
           ul.appendChild(li);
         });
-
-        return ul;
+        flatRootEl.appendChild(ul);
+        applyJenkinsBehaviour(flatRootEl);
       }
 
-      function countMatches(dirNode, query) {
-        let count = dirNode.files.filter((f) => (!query || f.path.toLowerCase().includes(query)) && (!activeSummaryExt || getExtension(f.path) === activeSummaryExt)).length;
-        dirNode.children.forEach((c) => {
-          count += countMatches(c, query);
-        });
-        return count;
-      }
-
-      const treeDom = buildDirUl(rootNode, 0);
-      if (treeDom.children.length === 0) {
-        treeRootEl.appendChild(el('div', 'ae-sum-empty', 'No matching artifacts found.'));
-      } else {
-        treeRootEl.appendChild(treeDom);
-        applyJenkinsBehaviour(treeRootEl);
-      }
-    }
-
-    // Render modern consistent flat view function
-    function renderFlat(filterQuery) {
-      flatRootEl.replaceChildren();
-      const q = (filterQuery || '').trim().toLowerCase();
-      const sorted = allFiles.slice().sort((a, b) => a.path.localeCompare(b.path));
-      const matches = sorted.filter((f) => (!q || f.path.toLowerCase().includes(q)) && (!activeSummaryExt || getExtension(f.path) === activeSummaryExt));
-
-      if (matches.length === 0) {
-        flatRootEl.appendChild(el('div', 'ae-sum-empty', 'No matching artifacts found.'));
-        return;
-      }
-
-      const ul = el('ul', 'ae-sum-list');
-      matches.forEach((file) => {
-        const li = el('li', 'ae-sum-node ae-sum-node--file');
-        const row = el('div', 'ae-sum-row ae-sum-row--file ae-sum-row--flat');
-        const fileIcon = svgIcon('file');
-
-        const link = el('a', 'ae-sum-name ae-sum-name--file');
-        link.href = file.href;
-        link.appendChild(highlight(file.path, q));
-
-        const size = el('span', 'ae-sum-size', file.size);
-
-        const actions = el('span', 'ae-sum-actions');
-        if (file.viewHref) {
-          const vLink = el('a', 'ae-sum-act-link', 'view');
-          vLink.href = file.viewHref;
-          actions.appendChild(vLink);
+      // Toggle view handler
+      function setView(mode) {
+        if (mode === 'tree') {
+          treeBtn.classList.add('ae-sum-toggle--active');
+          flatBtn.classList.remove('ae-sum-toggle--active');
+          treeRootEl.hidden = false;
+          flatRootEl.hidden = true;
+          renderTree(searchInput.value);
+          try { localStorage.setItem('ae-sum-view-mode', 'tree'); } catch (e) {}
+        } else {
+          flatBtn.classList.add('ae-sum-toggle--active');
+          treeBtn.classList.remove('ae-sum-toggle--active');
+          treeRootEl.hidden = true;
+          flatRootEl.hidden = false;
+          renderFlat(searchInput.value);
+          try { localStorage.setItem('ae-sum-view-mode', 'flat'); } catch (e) {}
         }
-        if (file.fpHref) {
-          const fpLink = el('a', 'ae-sum-act-link', 'fingerprint');
-          fpLink.href = file.fpHref;
-          actions.appendChild(fpLink);
-        }
+        table.style.display = 'none';
+      }
 
-        row.append(fileIcon, link, size, actions);
-        li.appendChild(row);
-        ul.appendChild(li);
+      treeBtn.addEventListener('click', () => setView('tree'));
+      flatBtn.addEventListener('click', () => setView('flat'));
+
+      function applyFilter() {
+        if (!treeRootEl.hidden) {
+          renderTree(searchInput.value);
+        } else {
+          renderFlat(searchInput.value);
+        }
+      }
+
+      let searchTimer = null;
+      searchInput.addEventListener('input', () => {
+        window.clearTimeout(searchTimer);
+        searchTimer = window.setTimeout(applyFilter, 80);
       });
-      flatRootEl.appendChild(ul);
-      applyJenkinsBehaviour(flatRootEl);
-    }
 
-    // Toggle view handler
-    function setView(mode) {
-      if (mode === 'tree') {
-        treeBtn.classList.add('ae-sum-toggle--active');
-        flatBtn.classList.remove('ae-sum-toggle--active');
-        treeRootEl.hidden = false;
-        flatRootEl.hidden = true;
-        renderTree(searchInput.value);
-        try { localStorage.setItem('ae-sum-view-mode', 'tree'); } catch (e) {}
-      } else {
-        flatBtn.classList.add('ae-sum-toggle--active');
-        treeBtn.classList.remove('ae-sum-toggle--active');
-        treeRootEl.hidden = true;
-        flatRootEl.hidden = false;
-        renderFlat(searchInput.value);
-        try { localStorage.setItem('ae-sum-view-mode', 'flat'); } catch (e) {}
-      }
-      table.style.display = 'none';
-    }
+      // Insert wrapper right before the table
+      table.parentNode.insertBefore(wrapper, table);
+      applyJenkinsBehaviour(toolbar);
 
-    treeBtn.addEventListener('click', () => setView('tree'));
-    flatBtn.addEventListener('click', () => setView('flat'));
-
-    function applyFilter() {
-      if (!treeRootEl.hidden) {
-        renderTree(searchInput.value);
-      } else {
-        renderFlat(searchInput.value);
-      }
-    }
-
-    let searchTimer = null;
-    searchInput.addEventListener('input', () => {
-      window.clearTimeout(searchTimer);
-      searchTimer = window.setTimeout(applyFilter, 80);
-    });
-
-    // Insert wrapper right before the table
-    table.parentNode.insertBefore(wrapper, table);
-    applyJenkinsBehaviour(toolbar);
-
-    // Respect saved preference (default to tree)
-    const saved = (function () {
-      try { return localStorage.getItem('ae-sum-view-mode'); } catch (e) { return null; }
-    })();
-    setView(saved === 'flat' ? 'flat' : 'tree');
+      // Respect saved preference (default to tree)
+      const saved = (function () {
+        try { return localStorage.getItem('ae-sum-view-mode'); } catch (e) { return null; }
+      })();
+      setView(saved === 'flat' ? 'flat' : 'tree');
     } catch (err) {
       console.warn('Artifact Explorer: could not enhance fileList table', err);
     }
@@ -577,7 +579,7 @@
       const heroCard = el('div', 'ae-fp-card ae-fp-hero');
       const heroHeader = el('div', 'ae-fp-hero-header');
       const iconWrap = el('div', 'ae-fp-icon-wrap');
-      iconWrap.appendChild(svgIcon('package'));
+      iconWrap.appendChild(svgIcon('fingerprint'));
 
       const titleGroup = el('div', 'ae-fp-title-group');
       const title = el('h1', 'ae-fp-title', fileName);
@@ -660,18 +662,32 @@
           const tdBuild = el('td', 'ae-fp-cell-build');
           const buildsWrap = el('div', 'ae-fp-builds-wrap');
           u.buildCells.forEach((cell) => {
+            let currentGroup = null;
+            function ensureGroup() {
+              if (!currentGroup) {
+                currentGroup = el('span', 'ae-fp-range-group');
+                buildsWrap.appendChild(currentGroup);
+              }
+              return currentGroup;
+            }
+
             Array.from(cell.childNodes).forEach((child) => {
-              const cloned = child.cloneNode(true);
-              if (cloned.nodeType === Node.ELEMENT_NODE && cloned.tagName === 'A') {
+              if (child.nodeType === Node.ELEMENT_NODE && child.tagName === 'A') {
+                const cloned = child.cloneNode(true);
                 cloned.classList.add('ae-fp-build-badge', 'model-link');
-                buildsWrap.appendChild(cloned);
-              } else if (cloned.nodeType === Node.TEXT_NODE) {
-                const text = cloned.textContent.replace(/\u00a0/g, ' ').trim();
-                if (text) {
-                  buildsWrap.appendChild(el('span', 'ae-fp-range-sep', text));
+                ensureGroup().appendChild(cloned);
+              } else if (child.nodeType === Node.TEXT_NODE) {
+                const text = child.textContent.replace(/\u00a0/g, ' ').trim();
+                if (text === '-') {
+                  ensureGroup().appendChild(el('span', 'ae-fp-range-sep', text));
+                } else if (text) {
+                  currentGroup = null;
+                } else {
+                  currentGroup = null;
                 }
-              } else {
-                buildsWrap.appendChild(cloned);
+              } else if (child.nodeType === Node.ELEMENT_NODE) {
+                const cloned = child.cloneNode(true);
+                ensureGroup().appendChild(cloned);
               }
             });
           });
