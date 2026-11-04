@@ -311,6 +311,7 @@
 
             const folderIcon = svgIcon('folder');
             const nameSpan = el('span', 'ae-sum-name ae-sum-name--dir');
+            nameSpan.title = subDir.name;
             nameSpan.appendChild(highlight(subDir.name, q));
 
             const countBadge = el('span', 'ae-sum-badge', subDir.files.length + subDir.children.size + ' items');
@@ -364,6 +365,7 @@
 
             const link = el('a', 'ae-sum-name ae-sum-name--file');
             link.href = file.href;
+            link.title = file.name;
             link.appendChild(highlight(file.name, q));
 
             const size = el('span', 'ae-sum-size', file.size);
@@ -425,6 +427,7 @@
 
           const link = el('a', 'ae-sum-name ae-sum-name--file');
           link.href = file.href;
+          link.title = file.path;
           link.appendChild(highlight(file.path, q));
 
           const size = el('span', 'ae-sum-size', file.size);

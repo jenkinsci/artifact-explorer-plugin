@@ -548,4 +548,73 @@ class ArtifactExplorerTest {
         HtmlPage managePage = wc.goTo("manage");
         assertFalse(managePage.asXml().contains("summary-tree.js"));
     }
+
+    @Test
+    void longFileNamesAndDeeplyNestedPathsAreHandledCorrectly(JenkinsRule j) throws Exception {
+        FreeStyleProject p = j.createFreeStyleProject("long-names-job");
+        String longDir = "dist-long/builds/release-candidates/v2.10.4-enterprise-cloud-native-production-ready";
+        String longMdFile =
+                "CHANGELOG-v2.10.4-comprehensive-infrastructure-modernization-and-high-availability-failover-specifications.md";
+        String longJsonFile =
+                "application-runtime-configuration-parameters-and-distributed-tracing-telemetry-descriptors.json";
+        String longTxtFile =
+                "redersoft-security-compliance-audit-report-financial-services-pci-dss-iso27001-soc2-type2-verified-q4-final.txt";
+
+        p.getBuildersList().add(new TestBuilder() {
+            @Override
+            public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener)
+                    throws InterruptedException, IOException {
+                FilePath ws = build.getWorkspace();
+                ws.child(longDir + "/" + longMdFile)
+                        .write("# Comprehensive Specifications\nSystem operational.", "UTF-8");
+                ws.child(longDir + "/" + longJsonFile).write("{\"config\": \"production\"}", "UTF-8");
+                ws.child("dist-long/telemetry/reports/" + longTxtFile).write("Verified", "UTF-8");
+                return true;
+            }
+        });
+        p.getPublishersList().add(new ArtifactArchiver("**"));
+        j.buildAndAssertSuccess(p);
+
+        JenkinsRule.WebClient wc = client(j);
+
+        // 1. Classic URL replacement works for deeply nested directory with long path
+        HtmlPage page = wc.goTo("job/long-names-job/1/artifact/" + longDir + "/");
+        assertNotNull(page.getElementById("artifact-explorer"));
+        assertEquals(longDir, page.getElementById("artifact-explorer").getAttribute("data-initial-path"));
+
+        // 2. Tree endpoint properly lists long file entries
+        JSONObject treeData = json(wc, "job/long-names-job/1/artifact-explorer/tree?path=" + longDir)
+                .getJSONObject("data");
+        JSONArray entries = treeData.getJSONArray("entries");
+        assertEquals(2, entries.size());
+        assertEquals(longJsonFile, entries.getJSONObject(0).getString("name"));
+        assertEquals(longDir + "/" + longJsonFile, entries.getJSONObject(0).getString("path"));
+        assertEquals(longMdFile, entries.getJSONObject(1).getString("name"));
+        assertEquals(longDir + "/" + longMdFile, entries.getJSONObject(1).getString("path"));
+        assertFalse(treeData.getBoolean("truncated"));
+
+        // 3. Search index contains all deeply nested files with long names
+        JSONArray searchFiles = json(wc, "job/long-names-job/1/artifact-explorer/searchIndex")
+                .getJSONObject("data")
+                .getJSONArray("files");
+        assertEquals(3, searchFiles.size());
+        assertTrue(searchFiles.contains(longDir + "/" + longMdFile));
+        assertTrue(searchFiles.contains(longDir + "/" + longJsonFile));
+        assertTrue(searchFiles.contains("dist-long/telemetry/reports/" + longTxtFile));
+
+        // 4. Preview endpoint resolves long filename, relative path, and content accurately
+        JSONObject prev = json(wc, "job/long-names-job/1/artifact-explorer/preview?path=" + longDir + "/" + longMdFile);
+        assertEquals("ok", prev.getString("status"));
+        JSONObject data = prev.getJSONObject("data");
+        assertEquals(longMdFile, data.getString("name"));
+        assertEquals(longDir + "/" + longMdFile, data.getString("path"));
+        assertFalse(data.getBoolean("binary"));
+        assertTrue(data.getString("text").contains("Comprehensive Specifications"));
+
+        // 5. SHA-256 endpoint computes checksum for long filenames accurately
+        JSONObject hashRes =
+                json(wc, "job/long-names-job/1/artifact-explorer/sha256?path=" + longDir + "/" + longMdFile);
+        assertEquals("ok", hashRes.getString("status"));
+        assertEquals(64, hashRes.getJSONObject("data").getString("sha256").length());
+    }
 }

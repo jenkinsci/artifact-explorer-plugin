@@ -107,12 +107,19 @@
 
 .ae-preview-header {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--ae-border);
+}
+
+.ae-preview-header-main {
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--ae-border);
+  min-width: 0;
+  width: 100%;
 }
 
 .ae-preview-title {
@@ -120,9 +127,9 @@
   align-items: center;
   gap: 0.4rem;
   min-width: 0;
-  max-width: 100%;
-  font-weight: 600;
   flex: 1 1 auto;
+  font-weight: 600;
+  font-size: 0.95rem;
 }
 
 .ae-preview-name {
@@ -131,12 +138,25 @@
   white-space: nowrap;
 }
 
-.ae-preview-actions {
+.ae-preview-close {
+  flex: none;
+  margin-left: auto;
+}
+
+.ae-preview-actions,
+.ae-preview-toolbar {
   display: flex;
   align-items: center;
   gap: 0.35rem;
   flex-wrap: wrap;
-  margin-left: auto;
+  width: 100%;
+}
+
+.ae-preview-toolbar-divider {
+  width: 1px;
+  height: 1.15rem;
+  background: var(--ae-border);
+  margin: 0 0.2rem;
 }
 
 .ae-btn-sm {
@@ -146,13 +166,46 @@
 }
 
 .ae-preview-meta {
-  padding: 0.3rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
   border-bottom: 1px solid var(--ae-border);
   color: var(--ae-muted);
-  font-size: 0.8rem;
+  font-size: 0.775rem;
+  background: var(--ae-hover, rgba(127, 127, 127, 0.04));
+}
+
+.ae-preview-meta-path {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+  font-family: var(--font-family-mono, monospace);
+  font-size: 0.75rem;
+}
+
+.ae-preview-meta-details {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: none;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.ae-preview-meta-sep {
+  opacity: 0.4;
+}
+
+.ae-preview-meta-badge {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: var(--warning-color, #f59e0b);
+  color: #fff;
 }
 
 .ae-preview-body {
