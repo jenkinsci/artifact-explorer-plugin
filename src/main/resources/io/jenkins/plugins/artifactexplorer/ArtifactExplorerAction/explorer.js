@@ -403,6 +403,30 @@
       return button;
     }
 
+    function copyPathButton(pathOrGetter, customToastMsg) {
+      const defaultLabel = label('CopyPath', 'Copy relative path');
+      const button = iconButton('copy', defaultLabel, async () => {
+        const raw = typeof pathOrGetter === 'function' ? pathOrGetter() : pathOrGetter;
+        if (!raw) return;
+        const success = await copyTextToClipboard(raw);
+        if (success) {
+          const doneLabel = label('Copied', 'Copied!');
+          setTooltip(button, doneLabel);
+          button.replaceChildren(svgIcon('check'));
+          button.classList.add('ae-iconbutton--done');
+          notify(customToastMsg || label('ToastPathCopied', 'Path copied to clipboard'));
+          window.setTimeout(() => {
+            setTooltip(button, defaultLabel);
+            button.replaceChildren(svgIcon('copy'));
+            button.classList.remove('ae-iconbutton--done');
+          }, 1500);
+        } else {
+          notify(label('CopyFailed', 'Could not copy to clipboard'), true);
+        }
+      });
+      return button;
+    }
+
     // ------------------------------------------------------------------ layout
 
     const searchInput = document.getElementById('ae-searchinput');
@@ -551,9 +575,17 @@
       const isRenderable = isMd || isHtml || isSvg || isCsv;
 
       const header = el('div', 'ae-preview-header');
+      const headerMain = el('div', 'ae-preview-header-main');
       const titleWrap = el('div', 'ae-preview-title');
-      titleWrap.append(svgIcon('file'), el('span', 'ae-preview-name', baseName(path)));
+      const nameSpan = el('span', 'ae-preview-name', baseName(path));
+      nameSpan.title = baseName(path);
+      titleWrap.append(svgIcon('file'), nameSpan);
 
+      const closeBtn = iconButton('close', label('Close'), closePreview);
+      closeBtn.classList.add('ae-preview-close');
+      headerMain.append(titleWrap, closeBtn);
+
+      const headerActions = el('div', 'ae-preview-actions ae-preview-toolbar');
       let previewBtn = null;
       let codeBtn = null;
       let modeGroup = null;
@@ -564,12 +596,9 @@
         codeBtn = el('button', 'ae-preview-toggle', 'Code');
         codeBtn.type = 'button';
         modeGroup.append(previewBtn, codeBtn);
-      }
-
-      const headerActions = el('div', 'ae-preview-actions');
-      if (modeGroup) {
         headerActions.appendChild(modeGroup);
       }
+
       const rawLink = el('a', 'jenkins-button ae-btn-sm', label('Raw'));
       rawLink.href = fileUrl(path);
       rawLink.target = '_blank';
@@ -577,6 +606,11 @@
       const dlLink = el('a', 'jenkins-button ae-btn-sm', label('Download'));
       dlLink.href = fileUrl(path);
       dlLink.setAttribute('download', '');
+
+      headerActions.append(rawLink, dlLink);
+
+      const divider = el('span', 'ae-preview-toolbar-divider');
+      headerActions.appendChild(divider);
 
       const checksumBtn = iconButton('shield', (label('ComputeChecksum') || 'Compute SHA-256') + ' (s)', () => runChecksumComputation());
 
@@ -591,17 +625,23 @@
       copyContentBtn.hidden = true;
 
       const copyLinkBtn = copyLinkButton(() => window.location.href, label('ToastDeepLinkCopied', 'Shareable deep link copied to clipboard'));
-      const closeBtn = iconButton('close', label('Close'), closePreview);
-      headerActions.append(rawLink, dlLink, checksumBtn, openInNewTab, fpLink, copyContentBtn, copyLinkBtn, closeBtn);
-      header.append(titleWrap, headerActions);
 
-      const meta = el('div', 'ae-preview-meta', path);
+      headerActions.append(checksumBtn, openInNewTab, fpLink, copyContentBtn, copyLinkBtn);
+      header.append(headerMain, headerActions);
+
+      const meta = el('div', 'ae-preview-meta');
+      const metaPath = el('span', 'ae-preview-meta-path', path);
+      metaPath.title = path;
+      const copyPathBtn = copyPathButton(() => path, label('ToastPathCopied', 'Path copied to clipboard'));
+      meta.append(metaPath, copyPathBtn);
+
       const checksumBar = el('div', 'ae-checksum-bar');
       checksumBar.hidden = true;
       const body = el('div', 'ae-preview-body');
       body.textContent = label('Loading');
       previewPane.append(header, meta, checksumBar, body);
-      applyJenkinsBehaviour(headerActions);
+      applyJenkinsBehaviour(header);
+      applyJenkinsBehaviour(meta);
 
       let calculatedHash = null;
       let isComputing = false;
@@ -730,14 +770,27 @@
         if (seq !== previewSequence) {
           return;
         }
-        const metaParts = [data.path, formatSize(data.size)];
+        meta.replaceChildren();
+        const metaPath = el('span', 'ae-preview-meta-path', data.path);
+        metaPath.title = data.path;
+        meta.appendChild(metaPath);
+
+        const metaDetails = el('div', 'ae-preview-meta-details');
+        const sizeSpan = el('span', 'ae-preview-meta-size', formatSize(data.size));
+        metaDetails.appendChild(sizeSpan);
+
         if (data.lastModified > 0) {
-          metaParts.push(formatDate(data.lastModified));
+          metaDetails.append(el('span', 'ae-preview-meta-sep', '•'), el('span', 'ae-preview-meta-date', formatDate(data.lastModified)));
         }
         if (data.truncated) {
-          metaParts.push(label('PreviewTruncated'));
+          metaDetails.append(el('span', 'ae-preview-meta-sep', '•'), el('span', 'ae-preview-meta-badge', label('PreviewTruncated')));
         }
-        meta.textContent = metaParts.join('  |  ');
+
+        const copyPathBtn = copyPathButton(() => data.path, label('ToastPathCopied', 'Path copied to clipboard'));
+        metaDetails.appendChild(copyPathBtn);
+
+        meta.appendChild(metaDetails);
+        applyJenkinsBehaviour(meta);
 
         if (IMAGE_EXT.test(path)) {
           return;
@@ -898,6 +951,7 @@
         row.appendChild(svgIcon('folder'));
         const name = el('button', 'ae-name ae-name--dir', entry.name);
         name.type = 'button';
+        name.title = entry.name;
         name.addEventListener('click', () => setExpanded(node, !node.expanded));
         row.appendChild(name);
         row.appendChild(el('span', 'ae-size'));
@@ -913,6 +967,7 @@
         row.appendChild(svgIcon('file'));
         const name = el('a', 'ae-name', entry.name);
         name.href = fileUrl(entry.path);
+        name.title = entry.name;
         name.addEventListener('click', (event) => {
           if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) {
             event.preventDefault();
@@ -1240,6 +1295,7 @@
         row.appendChild(svgIcon('file'));
         const link = el('a', 'ae-name');
         link.href = fileUrl(path);
+        link.title = path;
         link.appendChild(highlight(path.substring(basePath === '' ? 0 : basePath.length + 1), terms));
         link.addEventListener('click', (event) => {
           if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button === 0) {
