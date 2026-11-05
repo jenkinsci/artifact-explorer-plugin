@@ -11,7 +11,7 @@ A modern, high-performance interactive artifact browser for Jenkins. Replaces cl
 
 ## Classic Jenkins vs. Artifact Explorer
 
-![Classic Jenkins vs Artifact Explorer Comparison](https://raw.githubusercontent.com/jenkinsci/artifact-explorer-plugin/main/docs/images/comparison_classic_vs_explorer.png)
+![Classic Jenkins vs Artifact Explorer Comparison](docs/images/comparison_classic_vs_explorer.png)
 
 | Capability | Classic Jenkins | Artifact Explorer |
 | :--- | :--- | :--- |
@@ -29,7 +29,7 @@ A modern, high-performance interactive artifact browser for Jenkins. Replaces cl
 ### 1. Interactive Tree & Split-Pane Previews
 Replaces the directory browser at `<build>/artifact/` with an interactive split-pane interface:
 
-![Artifact Explorer Preview](https://raw.githubusercontent.com/jenkinsci/artifact-explorer-plugin/main/docs/images/explorer_preview.png)
+![Artifact Explorer Preview](docs/images/explorer_preview.png)
 
 - **Markdown (`.md`)**: Formatted headings, tables, code blocks, and blockquotes with a `[ Preview | Code ]` toggle.
 - **HTML Artifacts (`.html`)**: Interactive bundled web apps and reports rendered in a secure sandboxed frame.
@@ -45,7 +45,7 @@ Replaces the flat file list on Job and Build overview pages with a compact, card
 
 | Interactive Tree View | Redesigned Flat View |
 | :--- | :--- |
-| ![Summary Tree View](https://raw.githubusercontent.com/jenkinsci/artifact-explorer-plugin/main/docs/images/summary_tree.png) | ![Summary Flat View](https://raw.githubusercontent.com/jenkinsci/artifact-explorer-plugin/main/docs/images/summary_flat.png) |
+| ![Summary Tree View](docs/images/summary_tree.png) | ![Summary Flat View](docs/images/summary_flat.png) |
 
 - **Segmented View Switcher**: Instantly toggle between nested **`[ Tree ]`** hierarchy and clean **`[ Flat ]`** file listing.
 - **Live Search & Extension Pills**: Filter build artifacts in real time without leaving the build overview.
@@ -57,7 +57,7 @@ Replaces the flat file list on Job and Build overview pages with a compact, card
 
 | Keyboard Shortcuts Dialog (`?`) | Cryptographic SHA-256 Verifier (`s`) |
 | :--- | :--- |
-| ![Keyboard Shortcuts Cheatsheet](https://raw.githubusercontent.com/jenkinsci/artifact-explorer-plugin/main/docs/images/ergonomics_shortcuts_modal.png) | ![SHA-256 Checksum Verification](https://raw.githubusercontent.com/jenkinsci/artifact-explorer-plugin/main/docs/images/checksum_verified_preview.png) |
+| ![Keyboard Shortcuts Cheatsheet](docs/images/ergonomics_shortcuts_modal.png) | ![SHA-256 Checksum Verification](docs/images/checksum_verified_preview.png) |
 
 - **On-Demand SHA-256 Hashing**: Calculates cryptographic hash on the controller without downloading files to the browser.
 - **Manifest Verification**: Automatically matches hashes against build manifests (`*.sha256`) and displays a green `Verified Match` or red `Checksum Mismatch` badge.
